@@ -14,6 +14,9 @@ Versie 1.0.5 markeert `RS_LIFT_RAMP` in de native YFT expliciet met de
 Versie 1.0.6 corrigeert de YCD-clipgrenzen naar exact `0.0–1.0` seconde.
 De eerdere clips eindigden één frame buiten de onderliggende animatie.
 
+Versie 1.0.7 splitst `/rsliftdebug` in korte status- en animatieregels en
+schrijft dezelfde diagnose naar F8, zodat `start` en `phase` niet wegvallen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
