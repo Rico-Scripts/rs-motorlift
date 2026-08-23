@@ -37,6 +37,13 @@ Versie 1.0.12 gebruikt voor de geregistreerde fragmentclips eerst GTA's directe
 entity-animatiepad. Alleen wanneer dat pad de entity weigert, wordt de
 synchronized-scene-route als fallback geprobeerd en in `/rsliftdebug` vermeld.
 
+Versie 1.1.0 voegt de echte hefbeweging toe. Het blad stijgt 0,651 meter naar
+een gemeten bovenzijde van 1,00 meter, terwijl vier rigide schaararmen rond hun
+eigen draaipunten openen. Het onderframe blijft op `RS_LIFT_ROOT`, het blad en
+de platformcollision volgen `RS_LIFT_PLATFORM`, en de klep blijft een afzonderlijke
+child-bone. De wielklem is exact 0,180 meter naar het einde van het bestaande
+2,20 x 0,70 meter blad verplaatst.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
