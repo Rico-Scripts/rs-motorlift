@@ -11,6 +11,9 @@ Versie 1.0.2 koppelt het Fragment expliciet aan `rs_moto_lift_anim` en laat
 Versie 1.0.5 markeert `RS_LIFT_RAMP` in de native YFT expliciet met de
 `RotX`, `RotY` en `RotZ` boneflags, zodat GTA de YCD-rotatietrack toepast.
 
+Versie 1.0.6 corrigeert de YCD-clipgrenzen naar exact `0.0–1.0` seconde.
+De eerdere clips eindigden één frame buiten de onderliggende animatie.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

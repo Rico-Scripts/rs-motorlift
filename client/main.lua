@@ -4,6 +4,7 @@ local cachedDistance = math.huge
 local appliedRevision = {}
 local applicationToken = {}
 local animLoadFailureShown = false
+local lastAnimationAttempt = {}
 
 local function debugLog(message)
     if Config.Debug then
@@ -46,20 +47,29 @@ local function ensureAnimDict(timeoutMs)
 end
 
 local function poseEntity(entity, normalizedTime)
-    PlayEntityAnim(
+    local started = PlayEntityAnim(
         entity,
         Config.Animations.fold,
         Config.AnimDict,
-        1000.0,
+        8.0,
         false,
         true,
         false,
         0.0,
         0
     )
-    Wait(0)
+    local deadline = GetGameTimer() + 250
+    while started and not IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3) and GetGameTimer() < deadline do
+        Wait(0)
+    end
     SetEntityAnimCurrentTime(entity, Config.AnimDict, Config.Animations.fold, normalizedTime)
     SetEntityAnimSpeed(entity, Config.AnimDict, Config.Animations.fold, 0.0)
+    lastAnimationAttempt[entity] = {
+        animation = Config.Animations.fold,
+        started = started,
+        pose = normalizedTime
+    }
+    return started
 end
 
 local function playTransition(entity, animation)
@@ -67,7 +77,7 @@ local function playTransition(entity, animation)
         entity,
         animation,
         Config.AnimDict,
-        1000.0,
+        8.0,
         false,
         true,
         false,
@@ -75,6 +85,11 @@ local function playTransition(entity, animation)
         0
     )
     SetEntityAnimSpeed(entity, Config.AnimDict, animation, 1.0)
+    lastAnimationAttempt[entity] = {
+        animation = animation,
+        started = started,
+        pose = nil
+    }
     debugLog(('Animatie %s gestart=%s op entity=%s'):format(animation, tostring(started), entity))
     return started
 end
@@ -206,8 +221,10 @@ RegisterCommand('rsliftdebug', function()
     local state = sync and sync.state or 'geen_state'
     local foldPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3)
     local lowerPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.lower, 3)
+    local attempt = lastAnimationAttempt[entity] or {}
+    local phase = GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
     notify(
-        ('~b~RS-debug: ent=%s net=%s dist=%.2f state=%s model=%s animdict=%s fold=%s lower=%s'):format(
+        ('~b~RS-debug: ent=%s net=%s dist=%.2f state=%s model=%s animdict=%s fold=%s lower=%s start=%s phase=%.3f'):format(
             entity,
             NetworkGetNetworkIdFromEntity(entity),
             distance,
@@ -215,7 +232,9 @@ RegisterCommand('rsliftdebug', function()
             tostring(modelAvailable),
             tostring(animLoaded),
             tostring(foldPlaying),
-            tostring(lowerPlaying)
+            tostring(lowerPlaying),
+            tostring(attempt.started),
+            tonumber(phase) or -1.0
         )
     )
 end, false)
