@@ -62,6 +62,9 @@ YBN-collision. De client forceert collision streaming en activeert de physics
 voordat de onzichtbare proxy wordt bevroren. `/rsliftdebug` vermeldt met
 `coll=true` of de collision rond de proxy werkelijk is ingeladen.
 
+Versie 1.2.3 toont `proxy`, `coll` en `surf` op een afzonderlijke korte
+debugregel, zodat de collisionstatus niet meer door de HUD wordt afgekapt.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

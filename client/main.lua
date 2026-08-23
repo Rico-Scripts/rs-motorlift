@@ -480,13 +480,15 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.2.2 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s coll=%s surf=%.2f'):format(
+    local entitySummary = ('v1.2.3 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
         state,
         tostring(modelAvailable),
-        tostring(animLoaded),
+        tostring(animLoaded)
+    )
+    local collisionSummary = ('proxy=%s coll=%s surf=%.2f'):format(
         tostring(proxyExists),
         tostring(proxyCollision),
         Config.PlatformCollision.surfaceOffset
@@ -499,8 +501,9 @@ RegisterCommand('rsliftdebug', function()
         tostring(foldPlaying),
         tostring(lowerPlaying)
     )
-    print(('[rs_moto_lift] DEBUG %s | %s'):format(entitySummary, animationSummary))
+    print(('[rs_moto_lift] DEBUG %s | %s | %s'):format(entitySummary, collisionSummary, animationSummary))
     notify(('~b~RS-debug: %s'):format(entitySummary))
+    notify(('~b~RS-debug: %s'):format(collisionSummary))
     notify(('~b~RS-debug: %s'):format(animationSummary))
 end, false)
 
