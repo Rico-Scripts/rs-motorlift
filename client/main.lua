@@ -58,12 +58,12 @@ local function poseEntity(entity, normalizedTime)
         0
     )
     Wait(0)
-    SetEntityAnimCurrentTime(entity, Config.Animations.fold, Config.AnimDict, normalizedTime)
-    SetEntityAnimSpeed(entity, Config.Animations.fold, Config.AnimDict, 0.0)
+    SetEntityAnimCurrentTime(entity, Config.AnimDict, Config.Animations.fold, normalizedTime)
+    SetEntityAnimSpeed(entity, Config.AnimDict, Config.Animations.fold, 0.0)
 end
 
 local function playTransition(entity, animation)
-    PlayEntityAnim(
+    local started = PlayEntityAnim(
         entity,
         animation,
         Config.AnimDict,
@@ -71,10 +71,12 @@ local function playTransition(entity, animation)
         false,
         true,
         false,
-        1.0,
+        0.0,
         0
     )
-    SetEntityAnimSpeed(entity, animation, Config.AnimDict, 1.0)
+    SetEntityAnimSpeed(entity, Config.AnimDict, animation, 1.0)
+    debugLog(('Animatie %s gestart=%s op entity=%s'):format(animation, tostring(started), entity))
+    return started
 end
 
 local function applySync(entity, sync)
@@ -191,6 +193,33 @@ RegisterCommand(Config.Interaction.command, function()
     requestToggle(entity)
 end, false)
 
+RegisterCommand('rsliftdebug', function()
+    local entity, distance = findClosestManagedLift()
+    local modelAvailable = IsModelInCdimage(MODEL_HASH)
+    local animLoaded = ensureAnimDict(3000)
+    if entity == 0 then
+        notify(('~y~RS-debug: geen beheerde lift; model=%s animdict=%s'):format(tostring(modelAvailable), tostring(animLoaded)))
+        return
+    end
+
+    local sync = Entity(entity).state[Config.StateBagKey]
+    local state = sync and sync.state or 'geen_state'
+    local foldPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3)
+    local lowerPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.lower, 3)
+    notify(
+        ('~b~RS-debug: ent=%s net=%s dist=%.2f state=%s model=%s animdict=%s fold=%s lower=%s'):format(
+            entity,
+            NetworkGetNetworkIdFromEntity(entity),
+            distance,
+            state,
+            tostring(modelAvailable),
+            tostring(animLoaded),
+            tostring(foldPlaying),
+            tostring(lowerPlaying)
+        )
+    )
+end, false)
+
 exports('ToggleLift', requestToggle)
 
 CreateThread(function()
@@ -237,4 +266,3 @@ AddEventHandler('onResourceStop', function(resourceName)
         RemoveAnimDict(Config.AnimDict)
     end
 end)
-

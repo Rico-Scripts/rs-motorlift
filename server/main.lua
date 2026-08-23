@@ -174,6 +174,10 @@ local function transitionLift(lift, targetState, source)
 
     lift.busy = true
     local transitionSync = setSync(lift.entity, transitionState, targetState, animation, true)
+    if source then
+        local label = targetState == Config.States.drive and 'opgeklapt' or 'neergelaten'
+        playerMessage(source, ('~b~RS-motorlift wordt %s.'):format(label))
+    end
 
     SetTimeout(Config.AnimationDurationMs + Config.TransitionGraceMs, function()
         if not DoesEntityExist(lift.entity) or not lift.busy then
