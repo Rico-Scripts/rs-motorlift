@@ -6,6 +6,8 @@ local applicationToken = {}
 local animLoadFailureShown = false
 local lastAnimationAttempt = {}
 local activeScenes = {}
+local platformProxies = {}
+local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
 
 local function debugLog(message)
     if Config.Debug then
@@ -98,6 +100,122 @@ local function startEntityScene(entity, animation, phase, rate)
     return started
 end
 
+local function loadModel(hash, timeoutMs)
+    if HasModelLoaded(hash) then return true end
+    if not IsModelInCdimage(hash) or not IsModelValid(hash) then return false end
+    RequestModel(hash)
+    local deadline = GetGameTimer() + timeoutMs
+    while not HasModelLoaded(hash) and GetGameTimer() < deadline do Wait(0) end
+    return HasModelLoaded(hash)
+end
+
+local function deletePlatformProxy(entity)
+    local proxy = platformProxies[entity]
+    if proxy and DoesEntityExist(proxy) then
+        DeleteEntity(proxy)
+    end
+    platformProxies[entity] = nil
+end
+
+local function setPlatformProxyHeight(entity, height)
+    local proxy = platformProxies[entity]
+    if not proxy or not DoesEntityExist(proxy) or not DoesEntityExist(entity) then return false end
+    local coords = GetEntityCoords(entity)
+    SetEntityCoordsNoOffset(proxy, coords.x, coords.y, coords.z + height, false, false, false)
+    SetEntityHeading(proxy, GetEntityHeading(entity))
+    return true
+end
+
+local function ensurePlatformProxy(entity, height)
+    local current = platformProxies[entity]
+    if current and DoesEntityExist(current) then
+        setPlatformProxyHeight(entity, height or 0.0)
+        return current
+    end
+    if not loadModel(PROXY_MODEL_HASH, 5000) then
+        notify('~r~RS-platformcollision kon niet worden geladen.')
+        return 0
+    end
+    local coords = GetEntityCoords(entity)
+    local proxy = CreateObjectNoOffset(PROXY_MODEL_HASH, coords.x, coords.y, coords.z + (height or 0.0), false, false, false)
+    if proxy == 0 then return 0 end
+    SetEntityHeading(proxy, GetEntityHeading(entity))
+    SetEntityAlpha(proxy, 0, false)
+    SetEntityCollision(proxy, true, true)
+    FreezeEntityPosition(proxy, true)
+    SetEntityAsMissionEntity(proxy, true, true)
+    platformProxies[entity] = proxy
+    SetModelAsNoLongerNeeded(PROXY_MODEL_HASH)
+    return proxy
+end
+
+local function requestControl(entity, timeoutMs)
+    if NetworkHasControlOfEntity(entity) then return true end
+    local deadline = GetGameTimer() + timeoutMs
+    repeat
+        NetworkRequestControlOfEntity(entity)
+        Wait(0)
+    until NetworkHasControlOfEntity(entity) or GetGameTimer() >= deadline
+    return NetworkHasControlOfEntity(entity)
+end
+
+local function motorcycleOnPlatform(entity, height)
+    local liftCoords = GetEntityCoords(entity)
+    local deckZ = liftCoords.z + 0.349 + height
+    local best, bestDistance
+    local margin = Config.PlatformCollision.vehicleMargin
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if DoesEntityExist(vehicle) and GetVehicleClass(vehicle) == 8 then
+            local coords = GetEntityCoords(vehicle)
+            local localCoords = GetOffsetFromEntityGivenWorldCoords(entity, coords.x, coords.y, coords.z)
+            local inside = math.abs(localCoords.x) <= Config.PlatformCollision.halfLength + margin
+                and math.abs(localCoords.y) <= Config.PlatformCollision.halfWidth + margin
+                and math.abs(coords.z - deckZ) <= Config.PlatformCollision.vehicleZTolerance
+            if inside then
+                local distance = math.sqrt((coords.x - liftCoords.x) ^ 2 + (coords.y - liftCoords.y) ^ 2)
+                if not bestDistance or distance < bestDistance then
+                    best, bestDistance = vehicle, distance
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function animatePlatformProxy(entity, fromHeight, targetHeight, token)
+    if ensurePlatformProxy(entity, fromHeight) == 0 then return end
+    local vehicle = motorcycleOnPlatform(entity, fromHeight)
+    local vehicleFrozen = vehicle and requestControl(vehicle, 1200)
+    if vehicleFrozen then
+        FreezeEntityPosition(vehicle, true)
+        SetEntityVelocity(vehicle, 0.0, 0.0, 0.0)
+    else
+        vehicle = nil
+    end
+
+    local startedAt = GetGameTimer()
+    local duration = math.max(1, Config.AnimationDurationMs)
+    local previousHeight = fromHeight
+    while applicationToken[entity] == token and DoesEntityExist(entity) do
+        local progress = math.min(1.0, (GetGameTimer() - startedAt) / duration)
+        local height = fromHeight + ((targetHeight - fromHeight) * progress)
+        local delta = height - previousHeight
+        setPlatformProxyHeight(entity, height)
+        if vehicle and DoesEntityExist(vehicle) and math.abs(delta) > 0.00001 then
+            local coords = GetEntityCoords(vehicle)
+            SetEntityCoordsNoOffset(vehicle, coords.x, coords.y, coords.z + delta, false, false, false)
+            SetEntityVelocity(vehicle, 0.0, 0.0, 0.0)
+        end
+        previousHeight = height
+        if progress >= 1.0 then break end
+        Wait(0)
+    end
+    setPlatformProxyHeight(entity, targetHeight)
+    if vehicle and DoesEntityExist(vehicle) and vehicleFrozen then
+        FreezeEntityPosition(vehicle, false)
+    end
+end
+
 local function startDirectEntityAnim(entity, animation, phase, rate)
     stopActiveScene(entity)
     local started = PlayEntityAnim(
@@ -171,13 +289,17 @@ local function applySync(entity, sync)
         FreezeEntityPosition(entity, true)
 
         if sync.state == Config.States.use then
+            ensurePlatformProxy(entity, 0.0)
             poseEntity(entity, 0.0)
         elseif sync.state == Config.States.drive then
+            ensurePlatformProxy(entity, Config.PlatformCollision.travel)
             poseEntity(entity, 1.0)
         elseif sync.state == Config.States.folding then
             playTransition(entity, Config.Animations.fold)
+            animatePlatformProxy(entity, 0.0, Config.PlatformCollision.travel, token)
         elseif sync.state == Config.States.lowering then
             playTransition(entity, Config.Animations.lower)
+            animatePlatformProxy(entity, Config.PlatformCollision.travel, 0.0, token)
         else
             debugLog(('Onbekende liftstate ontvangen: %s'):format(tostring(sync.state)))
         end
@@ -317,13 +439,14 @@ RegisterCommand('rsliftdebug', function()
     local attempt = lastAnimationAttempt[entity] or {}
     local phase = attempt.mode == 'scene' and attempt.scene and GetSynchronizedScenePhase(attempt.scene)
         or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.1.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.2.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
         state,
         tostring(modelAvailable),
-        tostring(animLoaded)
+        tostring(animLoaded),
+        tostring(platformProxies[entity] and DoesEntityExist(platformProxies[entity]) or false)
     )
     local animationSummary = ('%s start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
         tostring(attempt.mode or 'none'),
@@ -346,6 +469,14 @@ CreateThread(function()
 
         if cachedEntity ~= 0 then
             local sync = Entity(cachedEntity).state[Config.StateBagKey]
+            if sync and sync.state == Config.States.drive then
+                ensurePlatformProxy(cachedEntity, Config.PlatformCollision.travel)
+            elseif sync and sync.state == Config.States.use then
+                ensurePlatformProxy(cachedEntity, 0.0)
+            elseif not platformProxies[cachedEntity] then
+                local initialHeight = sync and sync.state == Config.States.lowering and Config.PlatformCollision.travel or 0.0
+                ensurePlatformProxy(cachedEntity, initialHeight)
+            end
             if sync and appliedRevision[cachedEntity] ~= sync.revision then
                 applySync(cachedEntity, sync)
             end
@@ -383,6 +514,9 @@ AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() then
         for entity in pairs(activeScenes) do
             stopActiveScene(entity)
+        end
+        for entity in pairs(platformProxies) do
+            deletePlatformProxy(entity)
         end
         if HasAnimDictLoaded(Config.AnimDict) then
             RemoveAnimDict(Config.AnimDict)

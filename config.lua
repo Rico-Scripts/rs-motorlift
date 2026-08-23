@@ -19,6 +19,15 @@ Config.ManagedStateBagKey = 'rsMotoLiftManaged'
 Config.AnimationDurationMs = 1000
 Config.TransitionGraceMs = 150
 
+Config.PlatformCollision = {
+    model = 'rs_moto_lift_platform_proxy',
+    travel = 0.651,
+    halfLength = 1.50,
+    halfWidth = 0.35,
+    vehicleMargin = 0.20,
+    vehicleZTolerance = 1.40
+}
+
 Config.Interaction = {
     enabled = true,
     control = 38, -- INPUT_CONTEXT / E
