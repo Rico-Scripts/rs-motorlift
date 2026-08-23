@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'Rico Script'
 description 'Server-authoritative RS motorcycle lift integration'
-version '1.0.11'
+version '1.0.12'
 
 dependency '/onesync'
 

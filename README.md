@@ -33,6 +33,10 @@ Versie 1.0.11 laat `/rsliftspawn` client-side de echte vloer onder de speler
 meten. De server valideert het eenmalige meetresultaat voordat de lift wordt
 gemaakt, zodat de model-origin op de vloer staat en niet op de ped-positie.
 
+Versie 1.0.12 gebruikt voor de geregistreerde fragmentclips eerst GTA's directe
+entity-animatiepad. Alleen wanneer dat pad de entity weigert, wordt de
+synchronized-scene-route als fallback geprobeerd en in `/rsliftdebug` vermeld.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

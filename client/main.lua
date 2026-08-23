@@ -98,12 +98,50 @@ local function startEntityScene(entity, animation, phase, rate)
     return started
 end
 
+local function startDirectEntityAnim(entity, animation, phase, rate)
+    stopActiveScene(entity)
+    local started = PlayEntityAnim(
+        entity,
+        animation,
+        Config.AnimDict,
+        1000.0,
+        false,
+        true,
+        false,
+        0.0,
+        0
+    )
+    if started then
+        Wait(0)
+        if phase ~= nil then
+            SetEntityAnimCurrentTime(entity, Config.AnimDict, animation, phase)
+        end
+        SetEntityAnimSpeed(entity, Config.AnimDict, animation, rate or 1.0)
+        ForceEntityAiAndAnimationUpdate(entity)
+    end
+    lastAnimationAttempt[entity] = {
+        animation = animation,
+        started = started,
+        pose = phase,
+        mode = 'entity',
+        duration = GetAnimDuration(Config.AnimDict, animation)
+    }
+    return started
+end
+
+local function startLiftAnimation(entity, animation, phase, rate)
+    if startDirectEntityAnim(entity, animation, phase, rate) then
+        return true
+    end
+    return startEntityScene(entity, animation, phase, rate)
+end
+
 local function poseEntity(entity, normalizedTime)
-    return startEntityScene(entity, Config.Animations.fold, normalizedTime, 0.0)
+    return startLiftAnimation(entity, Config.Animations.fold, normalizedTime, 0.0)
 end
 
 local function playTransition(entity, animation)
-    local started = startEntityScene(entity, animation, nil, 1.0)
+    local started = startLiftAnimation(entity, animation, nil, 1.0)
     debugLog(('Animatie %s gestart=%s op entity=%s'):format(animation, tostring(started), entity))
     return started
 end
@@ -277,9 +315,9 @@ RegisterCommand('rsliftdebug', function()
     local foldPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3)
     local lowerPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.lower, 3)
     local attempt = lastAnimationAttempt[entity] or {}
-    local phase = attempt.scene and GetSynchronizedScenePhase(attempt.scene)
+    local phase = attempt.mode == 'scene' and attempt.scene and GetSynchronizedScenePhase(attempt.scene)
         or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.0.11 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.0.12 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -287,7 +325,8 @@ RegisterCommand('rsliftdebug', function()
         tostring(modelAvailable),
         tostring(animLoaded)
     )
-    local animationSummary = ('scene start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
+    local animationSummary = ('%s start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
+        tostring(attempt.mode or 'none'),
         tostring(attempt.started),
         tonumber(phase) or -1.0,
         tonumber(attempt.duration) or -1.0,
