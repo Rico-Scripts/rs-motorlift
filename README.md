@@ -8,6 +8,9 @@ resourcepage-flags voor FiveM/RAGE-compatibiliteit.
 Versie 1.0.2 koppelt het Fragment expliciet aan `rs_moto_lift_anim` en laat
 `drawableDictionary` leeg, omdat de lift een `.yft` en geen `.ydd` gebruikt.
 
+Versie 1.0.5 markeert `RS_LIFT_RAMP` in de native YFT expliciet met de
+`RotX`, `RotY` en `RotZ` boneflags, zodat GTA de YCD-rotatietrack toepast.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
