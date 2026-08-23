@@ -57,6 +57,11 @@ de schaararmen of hun draaipunten te vervormen. De lage stand blijft via de
 oprijplaat bereikbaar. De correctie is instelbaar via
 `Config.PlatformCollision.surfaceOffset`.
 
+Versie 1.2.2 wacht naast het drawable-model expliciet op de bijbehorende
+YBN-collision. De client forceert collision streaming en activeert de physics
+voordat de onzichtbare proxy wordt bevroren. `/rsliftdebug` vermeldt met
+`coll=true` of de collision rond de proxy werkelijk is ingeladen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

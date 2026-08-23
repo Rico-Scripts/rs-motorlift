@@ -101,12 +101,19 @@ local function startEntityScene(entity, animation, phase, rate)
 end
 
 local function loadModel(hash, timeoutMs)
-    if HasModelLoaded(hash) then return true end
     if not IsModelInCdimage(hash) or not IsModelValid(hash) then return false end
     RequestModel(hash)
+    RequestCollisionForModel(hash)
     local deadline = GetGameTimer() + timeoutMs
-    while not HasModelLoaded(hash) and GetGameTimer() < deadline do Wait(0) end
-    return HasModelLoaded(hash)
+    while (
+        not HasModelLoaded(hash)
+        or not HasCollisionForModelLoaded(hash)
+    ) and GetGameTimer() < deadline do
+        RequestModel(hash)
+        RequestCollisionForModel(hash)
+        Wait(0)
+    end
+    return HasModelLoaded(hash) and HasCollisionForModelLoaded(hash)
 end
 
 local function deletePlatformProxy(entity)
@@ -157,10 +164,25 @@ local function ensurePlatformProxy(entity, height)
     if proxy == 0 then return 0 end
     SetEntityHeading(proxy, GetEntityHeading(entity))
     SetEntityAlpha(proxy, 0, false)
+    RequestCollisionAtCoord(coords.x, coords.y, coords.z + (height or 0.0))
+    SetEntityLoadCollisionFlag(proxy, true, 1)
+    SetEntityRecordsCollisions(proxy, true)
+    SetEntityDynamic(proxy, false)
     SetEntityCollision(proxy, true, true)
+    ActivatePhysics(proxy)
     FreezeEntityPosition(proxy, true)
     SetEntityAsMissionEntity(proxy, true, true)
     platformProxies[entity] = proxy
+
+    local collisionDeadline = GetGameTimer() + 3000
+    while not HasCollisionLoadedAroundEntity(proxy) and GetGameTimer() < collisionDeadline do
+        RequestCollisionAtCoord(coords.x, coords.y, coords.z + (height or 0.0))
+        RequestCollisionForModel(PROXY_MODEL_HASH)
+        Wait(0)
+    end
+    if not HasCollisionLoadedAroundEntity(proxy) then
+        debugLog(('Platformproxy bestaat, maar YBN-collision is niet geladen: entity=%s proxy=%s'):format(entity, proxy))
+    end
     SetModelAsNoLongerNeeded(PROXY_MODEL_HASH)
     return proxy
 end
@@ -455,14 +477,18 @@ RegisterCommand('rsliftdebug', function()
     local attempt = lastAnimationAttempt[entity] or {}
     local phase = attempt.mode == 'scene' and attempt.scene and GetSynchronizedScenePhase(attempt.scene)
         or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.2.1 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s surf=%.2f'):format(
+    local proxy = platformProxies[entity]
+    local proxyExists = proxy and DoesEntityExist(proxy) or false
+    local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
+    local entitySummary = ('v1.2.2 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s coll=%s surf=%.2f'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
         state,
         tostring(modelAvailable),
         tostring(animLoaded),
-        tostring(platformProxies[entity] and DoesEntityExist(platformProxies[entity]) or false),
+        tostring(proxyExists),
+        tostring(proxyCollision),
         Config.PlatformCollision.surfaceOffset
     )
     local animationSummary = ('%s start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
