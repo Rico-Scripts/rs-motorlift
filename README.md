@@ -5,6 +5,9 @@ Standalone OneSync-integratie voor de geanimeerde `rs_moto_lift` Fragment.
 Versie 1.0.1 gebruikt een CodeWalker-repacked YTYP met conventionele 8 KiB
 resourcepage-flags voor FiveM/RAGE-compatibiliteit.
 
+Versie 1.0.2 koppelt het Fragment expliciet aan `rs_moto_lift_anim` en laat
+`drawableDictionary` leeg, omdat de lift een `.yft` en geen `.ydd` gebruikt.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
