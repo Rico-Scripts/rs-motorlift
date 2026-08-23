@@ -28,6 +28,14 @@ Config.Interaction = {
     command = 'rslift'
 }
 
+Config.Spawn = {
+    enabled = true,
+    command = 'rsliftspawn',
+    requireAce = true,
+    acePermission = 'rs_moto_lift.spawn',
+    initialState = Config.States.use
+}
+
 Config.Security = {
     requireAce = false,
     acePermission = 'rs_moto_lift.use',
@@ -54,4 +62,3 @@ Config.Debug = false
 --     }
 -- }
 Config.Placements = {}
-

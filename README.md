@@ -17,6 +17,30 @@ Standalone OneSync-integratie voor de geanimeerde `rs_moto_lift` Fragment.
 De resource vereist OneSync en spawnt geconfigureerde liften server-side. Zonder
 `Config.Placements` wordt bewust niets geplaatst.
 
+## Lift spawnen met een command
+
+Gebruik als bevoegde speler:
+
+```text
+/rsliftspawn
+/rsliftspawn use
+/rsliftspawn drive
+```
+
+De lift verschijnt exact op de huidige positie en heading van de speler. Er wordt
+geen oncontroleerbare clientpositie of verzonnen plaatsingsafstand gebruikt. Een
+command-lift is runtime-only: hij wordt bij het stoppen van de resource verwijderd
+en wordt niet als vaste plaatsing opgeslagen.
+
+Spawnen gebruikt standaard het aparte ACE-recht `rs_moto_lift.spawn`:
+
+```cfg
+add_ace group.admin rs_moto_lift.spawn allow
+```
+
+Het command, de standaardstand en de toegangscontrole zijn instelbaar onder
+`Config.Spawn` in `config.lua`.
+
 ## Toegang
 
 Standaard kan iedere speler binnen bereik de lift bedienen. Voor ACE-beveiliging:

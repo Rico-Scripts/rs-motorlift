@@ -2,6 +2,7 @@ local MODEL_HASH = joaat(Config.Model)
 local lifts = {}
 local netIdByEntity = {}
 local nextRevision = 0
+local spawnedLiftSequence = 0
 
 local validFinalStates = {
     [Config.States.use] = true,
@@ -55,7 +56,7 @@ local function setSync(entity, state, target, action, busy)
     return sync
 end
 
-local function registerLift(entity, id, initialState, ownedByResource)
+local function registerLift(entity, id, initialState, ownedByResource, persistent)
     if not entity or entity == 0 or not DoesEntityExist(entity) then
         return false, 'entity_not_found'
     end
@@ -69,14 +70,18 @@ local function registerLift(entity, id, initialState, ownedByResource)
     end
 
     initialState = validFinalStates[initialState] and initialState or Config.States.use
-    initialState = loadPersistentState(id, initialState)
+    persistent = persistent ~= false
+    if persistent then
+        initialState = loadPersistentState(id, initialState)
+    end
 
     lifts[netId] = {
         entity = entity,
         id = id or ('net_%s'):format(netId),
         state = initialState,
         busy = false,
-        ownedByResource = ownedByResource == true
+        ownedByResource = ownedByResource == true,
+        persistent = persistent
     }
     netIdByEntity[entity] = netId
 
@@ -86,27 +91,33 @@ local function registerLift(entity, id, initialState, ownedByResource)
     return true, netId
 end
 
-local function spawnConfiguredLift(placement)
-    if type(placement) ~= 'table' or type(placement.coords) ~= 'table' or not placement.id then
-        print('[rs_moto_lift] Ongeldige Config.Placements-entry overgeslagen.')
-        return
-    end
-
-    local coords = placement.coords
+local function spawnLift(coords, id, initialState, persistent)
     local entity = CreateObjectNoOffset(MODEL_HASH, coords.x + 0.0, coords.y + 0.0, coords.z + 0.0, true, true, false)
     if not entity or entity == 0 then
-        print(('[rs_moto_lift] Kon plaatsing %s niet spawnen.'):format(placement.id))
-        return
+        return false, 'spawn_failed'
     end
 
     SetEntityHeading(entity, (coords.w or 0.0) + 0.0)
     FreezeEntityPosition(entity, true)
     SetEntityOrphanMode(entity, 2)
 
-    local ok, reason = registerLift(entity, placement.id, placement.initialState, true)
+    local ok, reason = registerLift(entity, id, initialState, true, persistent)
     if not ok then
-        print(('[rs_moto_lift] Registratie van %s mislukt: %s'):format(placement.id, reason))
         DeleteEntity(entity)
+        return false, reason
+    end
+    return true, reason, entity
+end
+
+local function spawnConfiguredLift(placement)
+    if type(placement) ~= 'table' or type(placement.coords) ~= 'table' or not placement.id then
+        print('[rs_moto_lift] Ongeldige Config.Placements-entry overgeslagen.')
+        return
+    end
+
+    local ok, reason = spawnLift(placement.coords, placement.id, placement.initialState, true)
+    if not ok then
+        print(('[rs_moto_lift] Plaatsing %s kon niet worden gemaakt: %s'):format(placement.id, reason))
     end
 end
 
@@ -176,7 +187,9 @@ local function transitionLift(lift, targetState, source)
         lift.state = targetState
         lift.busy = false
         setSync(lift.entity, targetState, targetState, '', false)
-        savePersistentState(lift.id, targetState)
+        if lift.persistent then
+            savePersistentState(lift.id, targetState)
+        end
     end)
 
     return true
@@ -194,11 +207,60 @@ RegisterNetEvent('rs_moto_lift:server:toggle', function(netId)
     transitionLift(lift, target, source)
 end)
 
+RegisterCommand(Config.Spawn.command, function(source, args)
+    if not Config.Spawn.enabled then
+        playerMessage(source, '~r~Het spawnen van RS-motorliften is uitgeschakeld.')
+        return
+    end
+    if source <= 0 then
+        print(('[rs_moto_lift] /%s moet door een speler worden gebruikt; de serverconsole heeft geen positie.'):format(Config.Spawn.command))
+        return
+    end
+    if Config.Spawn.requireAce and not IsPlayerAceAllowed(source, Config.Spawn.acePermission) then
+        playerMessage(source, '~r~Je hebt geen toestemming om een RS-motorlift te spawnen.')
+        return
+    end
+
+    local initialState = Config.Spawn.initialState
+    local requestedState = args[1] and string.lower(args[1]) or nil
+    if requestedState == 'drive' or requestedState == 'rijstand' then
+        initialState = Config.States.drive
+    elseif requestedState == 'use' or requestedState == 'gebruik' then
+        initialState = Config.States.use
+    elseif requestedState then
+        playerMessage(source, ('~r~Gebruik: /%s [use|drive]'):format(Config.Spawn.command))
+        return
+    end
+
+    local playerPed = GetPlayerPed(source)
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        playerMessage(source, '~r~Spelerpositie kon niet worden bepaald.')
+        return
+    end
+
+    local playerCoords = GetEntityCoords(playerPed)
+    spawnedLiftSequence = spawnedLiftSequence + 1
+    local id = ('runtime_%s_%s_%s'):format(source, os.time(), spawnedLiftSequence)
+    local coords = {
+        x = playerCoords.x,
+        y = playerCoords.y,
+        z = playerCoords.z,
+        w = GetEntityHeading(playerPed)
+    }
+    local ok, reason = spawnLift(coords, id, initialState, false)
+    if not ok then
+        playerMessage(source, ('~r~De RS-motorlift kon niet worden gespawned: %s'):format(reason))
+        return
+    end
+
+    playerMessage(source, ('~g~RS-motorlift gespawned op je huidige positie (%s).'):format(initialState))
+end, false)
+
 exports('RegisterLift', function(entity, id, initialState)
     if not Config.Security.allowExternalRegistration then
         return false, 'external_registration_disabled'
     end
-    return registerLift(entity, id, initialState, false)
+    return registerLift(entity, id, initialState, false, true)
 end)
 
 exports('SetLiftState', function(entity, state)
