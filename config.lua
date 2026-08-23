@@ -61,4 +61,15 @@ Config.Debug = false
 --         initialState = Config.States.use
 --     }
 -- }
-Config.Placements = {}
+Config.Placements = {
+    {
+        id = 'werkplaats_lift_1',
+        coords = {
+            x = 322.879120,
+            y = -1112.294556,
+            z = 29.498902,
+            w = 93.543304
+        },
+        initialState = Config.States.use
+    }
+}
