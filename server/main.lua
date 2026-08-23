@@ -3,6 +3,7 @@ local lifts = {}
 local netIdByEntity = {}
 local nextRevision = 0
 local spawnedLiftSequence = 0
+local pendingSpawns = {}
 
 local validFinalStates = {
     [Config.States.use] = true,
@@ -236,29 +237,65 @@ RegisterCommand(Config.Spawn.command, function(source, args)
         return
     end
 
+    spawnedLiftSequence = spawnedLiftSequence + 1
+    local requestToken = spawnedLiftSequence
+    pendingSpawns[source] = {
+        token = requestToken,
+        initialState = initialState,
+        expiresAt = GetGameTimer() + 5000
+    }
+    TriggerClientEvent('rs_moto_lift:client:resolveSpawnGround', source, requestToken)
+end, false)
+
+local function isFiniteNumber(value)
+    return type(value) == 'number' and value == value and value > -math.huge and value < math.huge
+end
+
+RegisterNetEvent('rs_moto_lift:server:spawnAtGround', function(requestToken, groundCoords)
+    local source = source
+    local pending = pendingSpawns[source]
+    pendingSpawns[source] = nil
+
+    if not pending or pending.token ~= tonumber(requestToken) or GetGameTimer() > pending.expiresAt then
+        playerMessage(source, '~r~Het spawnverzoek is ongeldig of verlopen; probeer opnieuw.')
+        return
+    end
+    if type(groundCoords) ~= 'table'
+        or not isFiniteNumber(groundCoords.x)
+        or not isFiniteNumber(groundCoords.y)
+        or not isFiniteNumber(groundCoords.z) then
+        playerMessage(source, '~r~De gemeten vloerpositie is ongeldig.')
+        return
+    end
+
     local playerPed = GetPlayerPed(source)
     if playerPed == 0 or not DoesEntityExist(playerPed) then
         playerMessage(source, '~r~Spelerpositie kon niet worden bepaald.')
         return
     end
 
-    local playerCoords = GetEntityCoords(playerPed)
+    local requestedCoords = vector3(groundCoords.x, groundCoords.y, groundCoords.z)
+    if #(GetEntityCoords(playerPed) - requestedCoords) > 3.0 then
+        playerMessage(source, '~r~De gemeten vloerpositie ligt te ver van je vandaan.')
+        return
+    end
+
     spawnedLiftSequence = spawnedLiftSequence + 1
     local id = ('runtime_%s_%s_%s'):format(source, os.time(), spawnedLiftSequence)
     local coords = {
-        x = playerCoords.x,
-        y = playerCoords.y,
-        z = playerCoords.z,
+        x = groundCoords.x,
+        y = groundCoords.y,
+        z = groundCoords.z,
         w = GetEntityHeading(playerPed)
     }
-    local ok, reason = spawnLift(coords, id, initialState, false)
+    local ok, reason = spawnLift(coords, id, pending.initialState, false)
     if not ok then
         playerMessage(source, ('~r~De RS-motorlift kon niet worden gespawned: %s'):format(reason))
         return
     end
 
-    playerMessage(source, ('~g~RS-motorlift gespawned op je huidige positie (%s).'):format(initialState))
-end, false)
+    playerMessage(source, ('~g~RS-motorlift op de gemeten vloer gespawned (%s).'):format(pending.initialState))
+end)
 
 exports('RegisterLift', function(entity, id, initialState)
     if not Config.Security.allowExternalRegistration then
@@ -296,6 +333,10 @@ AddEventHandler('entityRemoved', function(entity)
         netIdByEntity[entity] = nil
         lifts[netId] = nil
     end
+end)
+
+AddEventHandler('playerDropped', function()
+    pendingSpawns[source] = nil
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)

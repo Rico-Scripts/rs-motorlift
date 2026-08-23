@@ -29,6 +29,10 @@ Versie 1.0.10 zet de vereiste YTYP-archetypeflag `Has Anim (YCD)` en neemt de
 YCD expliciet op in het manifest. De interne namen eindigen volgens de
 RAGE/Sollumz-conventie op `.clip`, zodat de twee RS-clips worden geregistreerd.
 
+Versie 1.0.11 laat `/rsliftspawn` client-side de echte vloer onder de speler
+meten. De server valideert het eenmalige meetresultaat voordat de lift wordt
+gemaakt, zodat de model-origin op de vloer staat en niet op de ped-positie.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
@@ -54,7 +58,8 @@ Gebruik als bevoegde speler:
 /rsliftspawn drive
 ```
 
-De lift verschijnt exact op de huidige positie en heading van de speler. Er wordt
+De lift verschijnt op de gemeten vloer onder de huidige positie en krijgt de
+heading van de speler. Er wordt
 geen oncontroleerbare clientpositie of verzonnen plaatsingsafstand gebruikt. Een
 command-lift is runtime-only: hij wordt bij het stoppen van de resource verwijderd
 en wordt niet als vaste plaatsing opgeslagen.

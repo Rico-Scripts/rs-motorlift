@@ -213,6 +213,47 @@ RegisterNetEvent('rs_moto_lift:client:message', function(message)
     notify(message)
 end)
 
+local function measureFloorBelowPlayer()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local ray = StartExpensiveSynchronousShapeTestLosProbe(
+        coords.x,
+        coords.y,
+        coords.z + 1.0,
+        coords.x,
+        coords.y,
+        coords.z - 5.0,
+        1,
+        ped,
+        7
+    )
+    local _, hit, hitCoords = GetShapeTestResult(ray)
+    if hit == 1 and hitCoords then
+        return hitCoords
+    end
+
+    local foundGround, groundZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 1.0, false)
+    if foundGround then
+        return vector3(coords.x, coords.y, groundZ)
+    end
+
+    return nil
+end
+
+RegisterNetEvent('rs_moto_lift:client:resolveSpawnGround', function(requestToken)
+    local floorCoords = measureFloorBelowPlayer()
+    if not floorCoords then
+        notify('~r~Er kon geen vloer onder je worden gemeten; de lift is niet gespawned.')
+        return
+    end
+
+    TriggerServerEvent('rs_moto_lift:server:spawnAtGround', requestToken, {
+        x = floorCoords.x,
+        y = floorCoords.y,
+        z = floorCoords.z
+    })
+end)
+
 RegisterCommand(Config.Interaction.command, function()
     local entity, distance = findClosestManagedLift()
     if distance > Config.Interaction.distance then
@@ -238,7 +279,7 @@ RegisterCommand('rsliftdebug', function()
     local attempt = lastAnimationAttempt[entity] or {}
     local phase = attempt.scene and GetSynchronizedScenePhase(attempt.scene)
         or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.0.10 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.0.11 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
