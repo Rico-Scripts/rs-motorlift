@@ -1,7 +1,7 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'RS'
+author 'Rico Script'
 description 'Server-authoritative RS motorcycle lift integration'
 version '1.0.10'
 
