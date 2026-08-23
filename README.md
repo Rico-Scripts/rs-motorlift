@@ -21,6 +21,10 @@ Versie 1.0.8 gebruikt RAGE-compatibele lowercase hashes voor de twee RS-clips.
 De eerdere uppercase hashes konden wel laden, maar niet via `PlayEntityAnim`
 worden gevonden.
 
+Versie 1.0.9 speelt de lift als een lokale synchronized entity scene af. De
+serverstatus blijft via OneSync gesynchroniseerd, terwijl iedere client de
+fragmentanimatie via GTA's object-scene-pad rendert.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

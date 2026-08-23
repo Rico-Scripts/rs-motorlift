@@ -5,6 +5,7 @@ local appliedRevision = {}
 local applicationToken = {}
 local animLoadFailureShown = false
 local lastAnimationAttempt = {}
+local activeScenes = {}
 
 local function debugLog(message)
     if Config.Debug then
@@ -46,50 +47,63 @@ local function ensureAnimDict(timeoutMs)
     return true
 end
 
-local function poseEntity(entity, normalizedTime)
-    local started = PlayEntityAnim(
+local function stopActiveScene(entity)
+    local scene = activeScenes[entity]
+    if scene then
+        DetachSynchronizedScene(scene)
+        activeScenes[entity] = nil
+    end
+end
+
+local function startEntityScene(entity, animation, phase, rate)
+    stopActiveScene(entity)
+    local coords = GetEntityCoords(entity)
+    local rotation = GetEntityRotation(entity, 2)
+    local scene = CreateSynchronizedScene(
+        coords.x,
+        coords.y,
+        coords.z,
+        rotation.x,
+        rotation.y,
+        rotation.z,
+        2
+    )
+    SetSynchronizedSceneLooped(scene, false)
+    local started = PlaySynchronizedEntityAnim(
         entity,
-        Config.Animations.fold,
+        scene,
+        animation,
         Config.AnimDict,
         8.0,
-        false,
-        true,
-        false,
-        0.0,
-        0
+        -8.0,
+        4,
+        1000.0
     )
-    local deadline = GetGameTimer() + 250
-    while started and not IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3) and GetGameTimer() < deadline do
-        Wait(0)
+    if started then
+        activeScenes[entity] = scene
+        if phase ~= nil then
+            SetSynchronizedScenePhase(scene, phase)
+        end
+        SetSynchronizedSceneRate(scene, rate or 1.0)
+        ForceEntityAiAndAnimationUpdate(entity)
     end
-    SetEntityAnimCurrentTime(entity, Config.AnimDict, Config.Animations.fold, normalizedTime)
-    SetEntityAnimSpeed(entity, Config.AnimDict, Config.Animations.fold, 0.0)
     lastAnimationAttempt[entity] = {
-        animation = Config.Animations.fold,
+        animation = animation,
         started = started,
-        pose = normalizedTime
+        pose = phase,
+        mode = 'scene',
+        scene = scene,
+        duration = GetAnimDuration(Config.AnimDict, animation)
     }
     return started
 end
 
+local function poseEntity(entity, normalizedTime)
+    return startEntityScene(entity, Config.Animations.fold, normalizedTime, 0.0)
+end
+
 local function playTransition(entity, animation)
-    local started = PlayEntityAnim(
-        entity,
-        animation,
-        Config.AnimDict,
-        8.0,
-        false,
-        true,
-        false,
-        0.0,
-        0
-    )
-    SetEntityAnimSpeed(entity, Config.AnimDict, animation, 1.0)
-    lastAnimationAttempt[entity] = {
-        animation = animation,
-        started = started,
-        pose = nil
-    }
+    local started = startEntityScene(entity, animation, nil, 1.0)
     debugLog(('Animatie %s gestart=%s op entity=%s'):format(animation, tostring(started), entity))
     return started
 end
@@ -222,8 +236,9 @@ RegisterCommand('rsliftdebug', function()
     local foldPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.fold, 3)
     local lowerPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.lower, 3)
     local attempt = lastAnimationAttempt[entity] or {}
-    local phase = GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.0.8 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local phase = attempt.scene and GetSynchronizedScenePhase(attempt.scene)
+        or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
+    local entitySummary = ('v1.0.9 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -231,9 +246,10 @@ RegisterCommand('rsliftdebug', function()
         tostring(modelAvailable),
         tostring(animLoaded)
     )
-    local animationSummary = ('anim start=%s phase=%.3f fold=%s lower=%s'):format(
+    local animationSummary = ('scene start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
         tostring(attempt.started),
         tonumber(phase) or -1.0,
+        tonumber(attempt.duration) or -1.0,
         tostring(foldPlaying),
         tostring(lowerPlaying)
     )
@@ -284,7 +300,12 @@ CreateThread(function()
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)
-    if resourceName == GetCurrentResourceName() and HasAnimDictLoaded(Config.AnimDict) then
-        RemoveAnimDict(Config.AnimDict)
+    if resourceName == GetCurrentResourceName() then
+        for entity in pairs(activeScenes) do
+            stopActiveScene(entity)
+        end
+        if HasAnimDictLoaded(Config.AnimDict) then
+            RemoveAnimDict(Config.AnimDict)
+        end
     end
 end)
