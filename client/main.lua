@@ -223,7 +223,7 @@ RegisterCommand('rsliftdebug', function()
     local lowerPlaying = IsEntityPlayingAnim(entity, Config.AnimDict, Config.Animations.lower, 3)
     local attempt = lastAnimationAttempt[entity] or {}
     local phase = GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.0.7 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.0.8 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,

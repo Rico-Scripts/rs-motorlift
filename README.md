@@ -17,6 +17,10 @@ De eerdere clips eindigden één frame buiten de onderliggende animatie.
 Versie 1.0.7 splitst `/rsliftdebug` in korte status- en animatieregels en
 schrijft dezelfde diagnose naar F8, zodat `start` en `phase` niet wegvallen.
 
+Versie 1.0.8 gebruikt RAGE-compatibele lowercase hashes voor de twee RS-clips.
+De eerdere uppercase hashes konden wel laden, maar niet via `PlayEntityAnim`
+worden gevonden.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
@@ -105,5 +109,5 @@ je een andere mapnaam, pas dan ook de naam bij `ensure` en `exports` aan.
 
 - Model/Fragment: `rs_moto_lift`
 - Animdict: `rs_moto_lift_anim`
-- Gebruik → rijstand: `RS_LIFT_FOLD_TO_DRIVE_LOCKED`
-- Rijstand → gebruik: `RS_LIFT_LOWER_TO_USE`
+- Gebruik → rijstand: `rs_lift_fold_to_drive_locked`
+- Rijstand → gebruik: `rs_lift_lower_to_use`

@@ -3,8 +3,8 @@ Config = {}
 Config.Model = 'rs_moto_lift'
 Config.AnimDict = 'rs_moto_lift_anim'
 Config.Animations = {
-    fold = 'RS_LIFT_FOLD_TO_DRIVE_LOCKED',
-    lower = 'RS_LIFT_LOWER_TO_USE'
+    fold = 'rs_lift_fold_to_drive_locked',
+    lower = 'rs_lift_lower_to_use'
 }
 
 Config.States = {
