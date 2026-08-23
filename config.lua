@@ -22,6 +22,10 @@ Config.TransitionGraceMs = 150
 Config.PlatformCollision = {
     model = 'rs_moto_lift_platform_proxy',
     travel = 0.651,
+    -- GTA-motorwielen zakken gedeeltelijk in een dun objectbound. Deze
+    -- verhoging zet het fysieke draagvlak boven het visuele blad, zodat de
+    -- banden zichtbaar op het metaal rusten en de oprijplaat nodig blijft.
+    surfaceOffset = 0.10,
     halfLength = 1.50,
     halfWidth = 0.35,
     vehicleMargin = 0.20,

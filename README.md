@@ -51,6 +51,12 @@ een frontstop. Tijdens heffen en zakken beweegt de proxy exact 0,651 meter mee;
 een motorfiets op het blad wordt gecontroleerd en per frame met het blad
 meegenomen.
 
+Versie 1.2.1 verhoogt uitsluitend het fysieke voertuig-draagvlak met 0,10 meter.
+Dit compenseert de wielpenetratie van GTA-motorfietsen zonder het metalen blad,
+de schaararmen of hun draaipunten te vervormen. De lage stand blijft via de
+oprijplaat bereikbaar. De correctie is instelbaar via
+`Config.PlatformCollision.surfaceOffset`.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

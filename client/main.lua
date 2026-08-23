@@ -121,7 +121,15 @@ local function setPlatformProxyHeight(entity, height)
     local proxy = platformProxies[entity]
     if not proxy or not DoesEntityExist(proxy) or not DoesEntityExist(entity) then return false end
     local coords = GetEntityCoords(entity)
-    SetEntityCoordsNoOffset(proxy, coords.x, coords.y, coords.z + height, false, false, false)
+    SetEntityCoordsNoOffset(
+        proxy,
+        coords.x,
+        coords.y,
+        coords.z + height + Config.PlatformCollision.surfaceOffset,
+        false,
+        false,
+        false
+    )
     SetEntityHeading(proxy, GetEntityHeading(entity))
     return true
 end
@@ -137,7 +145,15 @@ local function ensurePlatformProxy(entity, height)
         return 0
     end
     local coords = GetEntityCoords(entity)
-    local proxy = CreateObjectNoOffset(PROXY_MODEL_HASH, coords.x, coords.y, coords.z + (height or 0.0), false, false, false)
+    local proxy = CreateObjectNoOffset(
+        PROXY_MODEL_HASH,
+        coords.x,
+        coords.y,
+        coords.z + (height or 0.0) + Config.PlatformCollision.surfaceOffset,
+        false,
+        false,
+        false
+    )
     if proxy == 0 then return 0 end
     SetEntityHeading(proxy, GetEntityHeading(entity))
     SetEntityAlpha(proxy, 0, false)
@@ -161,7 +177,7 @@ end
 
 local function motorcycleOnPlatform(entity, height)
     local liftCoords = GetEntityCoords(entity)
-    local deckZ = liftCoords.z + 0.349 + height
+    local deckZ = liftCoords.z + 0.349 + height + Config.PlatformCollision.surfaceOffset
     local best, bestDistance
     local margin = Config.PlatformCollision.vehicleMargin
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
@@ -439,14 +455,15 @@ RegisterCommand('rsliftdebug', function()
     local attempt = lastAnimationAttempt[entity] or {}
     local phase = attempt.mode == 'scene' and attempt.scene and GetSynchronizedScenePhase(attempt.scene)
         or GetEntityAnimCurrentTime(entity, Config.AnimDict, attempt.animation or Config.Animations.fold)
-    local entitySummary = ('v1.2.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s'):format(
+    local entitySummary = ('v1.2.1 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s proxy=%s surf=%.2f'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
         state,
         tostring(modelAvailable),
         tostring(animLoaded),
-        tostring(platformProxies[entity] and DoesEntityExist(platformProxies[entity]) or false)
+        tostring(platformProxies[entity] and DoesEntityExist(platformProxies[entity]) or false),
+        Config.PlatformCollision.surfaceOffset
     )
     local animationSummary = ('%s start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
         tostring(attempt.mode or 'none'),
