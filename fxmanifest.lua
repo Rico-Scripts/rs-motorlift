@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'RS'
 description 'Server-authoritative RS motorcycle lift integration'
-version '1.0.9'
+version '1.0.10'
 
 dependency '/onesync'
 
@@ -12,7 +12,8 @@ client_script 'client/main.lua'
 server_script 'server/main.lua'
 
 files {
-    'stream/rs_moto_lift.ytyp'
+    'stream/rs_moto_lift.ytyp',
+    'stream/rs_moto_lift_anim.ycd'
 }
 
 data_file 'DLC_ITYP_REQUEST' 'stream/rs_moto_lift.ytyp'

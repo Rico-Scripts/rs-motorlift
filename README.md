@@ -25,6 +25,10 @@ Versie 1.0.9 speelt de lift als een lokale synchronized entity scene af. De
 serverstatus blijft via OneSync gesynchroniseerd, terwijl iedere client de
 fragmentanimatie via GTA's object-scene-pad rendert.
 
+Versie 1.0.10 zet de vereiste YTYP-archetypeflag `Has Anim (YCD)` en neemt de
+YCD expliciet op in het manifest. De interne namen eindigen volgens de
+RAGE/Sollumz-conventie op `.clip`, zodat de twee RS-clips worden geregistreerd.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
