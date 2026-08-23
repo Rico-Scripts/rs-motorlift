@@ -65,6 +65,11 @@ voordat de onzichtbare proxy wordt bevroren. `/rsliftdebug` vermeldt met
 Versie 1.2.3 toont `proxy`, `coll` en `surf` op een afzonderlijke korte
 debugregel, zodat de collisionstatus niet meer door de HUD wordt afgekapt.
 
+Versie 1.2.4 exporteert beide YBN-child-bounds met Sollumz' officiële
+`General (Default)` composite flags. Vooral `MAP VEHICLE` en
+`TEST VEHICLE WHEEL` zorgen dat geladen proxycollision ook daadwerkelijk door
+motorwielen als dragend oppervlak wordt geraakt.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
