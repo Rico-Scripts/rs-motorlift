@@ -70,6 +70,14 @@ Versie 1.2.4 exporteert beide YBN-child-bounds met Sollumz' officiële
 `TEST VEHICLE WHEEL` zorgen dat geladen proxycollision ook daadwerkelijk door
 motorwielen als dragend oppervlak wordt geraakt.
 
+Versie 1.3.0 voegt een scriptmatige voertuigvloer toe als betrouwbare fallback
+voor FiveM-clients die zelfs correct geflagde custom YBN-objectcollision niet
+als motorwieloppervlak behandelen. De onderkant van een motorfiets binnen het
+3,00 x 0,70 meter blad wordt alleen verticaal tot bladhoogte gecorrigeerd;
+sturen en rijden over X/Y blijven vrij. Reeds gedragen motoren blijven tijdens
+de hefbeweging geregistreerd, terwijl motoren onder een opgeheven lift niet
+onbedoeld omhoog worden getrokken.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

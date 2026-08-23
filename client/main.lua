@@ -7,6 +7,8 @@ local animLoadFailureShown = false
 local lastAnimationAttempt = {}
 local activeScenes = {}
 local platformProxies = {}
+local platformHeights = {}
+local supportedMotorcycles = {}
 local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
 
 local function debugLog(message)
@@ -122,6 +124,7 @@ local function deletePlatformProxy(entity)
         DeleteEntity(proxy)
     end
     platformProxies[entity] = nil
+    platformHeights[entity] = nil
 end
 
 local function setPlatformProxyHeight(entity, height)
@@ -138,6 +141,7 @@ local function setPlatformProxyHeight(entity, height)
         false
     )
     SetEntityHeading(proxy, GetEntityHeading(entity))
+    platformHeights[entity] = height
     return true
 end
 
@@ -173,6 +177,7 @@ local function ensurePlatformProxy(entity, height)
     FreezeEntityPosition(proxy, true)
     SetEntityAsMissionEntity(proxy, true, true)
     platformProxies[entity] = proxy
+    platformHeights[entity] = height or 0.0
 
     local collisionDeadline = GetGameTimer() + 3000
     while not HasCollisionLoadedAroundEntity(proxy) and GetGameTimer() < collisionDeadline do
@@ -220,11 +225,46 @@ local function motorcycleOnPlatform(entity, height)
     return best
 end
 
+local function supportSurfaceZ(entity, height)
+    local coords = GetEntityCoords(entity)
+    return coords.z + Config.PlatformCollision.deckTop + height + Config.PlatformCollision.surfaceOffset
+end
+
+local function vehicleBottomZ(vehicle)
+    local minimum = GetModelDimensions(GetEntityModel(vehicle))
+    return GetEntityCoords(vehicle).z + minimum.z
+end
+
+local function isInsidePlatform(entity, vehicle)
+    local coords = GetEntityCoords(vehicle)
+    local localCoords = GetOffsetFromEntityGivenWorldCoords(entity, coords.x, coords.y, coords.z)
+    local margin = Config.PlatformCollision.vehicleMargin
+    return math.abs(localCoords.x) <= Config.PlatformCollision.halfLength + margin
+        and math.abs(localCoords.y) <= Config.PlatformCollision.halfWidth + margin
+end
+
+
+local function applyMotorcycleSupport(entity, vehicle, height)
+    if not NetworkHasControlOfEntity(vehicle) then return end
+    local targetBottom = supportSurfaceZ(entity, height)
+    local bottom = vehicleBottomZ(vehicle)
+    if bottom >= targetBottom - 0.002 then return end
+
+    local correction = math.min(targetBottom - bottom, Config.PlatformCollision.maxRisePerTick)
+    local coords = GetEntityCoords(vehicle)
+    SetEntityCoordsNoOffset(vehicle, coords.x, coords.y, coords.z + correction, false, false, false)
+    local velocity = GetEntityVelocity(vehicle)
+    if velocity.z < 0.0 then
+        SetEntityVelocity(vehicle, velocity.x, velocity.y, 0.0)
+    end
+end
+
 local function animatePlatformProxy(entity, fromHeight, targetHeight, token)
     if ensurePlatformProxy(entity, fromHeight) == 0 then return end
     local vehicle = motorcycleOnPlatform(entity, fromHeight)
     local vehicleFrozen = vehicle and requestControl(vehicle, 1200)
     if vehicleFrozen then
+        supportedMotorcycles[vehicle] = entity
         FreezeEntityPosition(vehicle, true)
         SetEntityVelocity(vehicle, 0.0, 0.0, 0.0)
     else
@@ -253,6 +293,42 @@ local function animatePlatformProxy(entity, fromHeight, targetHeight, token)
         FreezeEntityPosition(vehicle, false)
     end
 end
+
+
+CreateThread(function()
+    if not Config.PlatformCollision.supportEnabled then return end
+
+    while true do
+        local hasProxy = next(platformProxies) ~= nil
+        if not hasProxy then
+            Wait(250)
+        else
+            local vehicles = GetGamePool('CVehicle')
+            for entity, proxy in pairs(platformProxies) do
+                if DoesEntityExist(entity) and proxy and DoesEntityExist(proxy) then
+                    local height = platformHeights[entity] or 0.0
+                    local isRaised = height > Config.PlatformCollision.travel * 0.5
+                    local surface = supportSurfaceZ(entity, height)
+
+                    for _, vehicle in ipairs(vehicles) do
+                        if DoesEntityExist(vehicle) and GetVehicleClass(vehicle) == 8 and isInsidePlatform(entity, vehicle) then
+                            local known = supportedMotorcycles[vehicle] == entity
+                            local closeToSurface = math.abs(vehicleBottomZ(vehicle) - surface)
+                                <= Config.PlatformCollision.raisedAdmissionTolerance
+                            if not isRaised or known or closeToSurface then
+                                supportedMotorcycles[vehicle] = entity
+                                applyMotorcycleSupport(entity, vehicle, height)
+                            end
+                        elseif supportedMotorcycles[vehicle] == entity then
+                            supportedMotorcycles[vehicle] = nil
+                        end
+                    end
+                end
+            end
+            Wait(Config.PlatformCollision.supportIntervalMs)
+        end
+    end
+end)
 
 local function startDirectEntityAnim(entity, animation, phase, rate)
     stopActiveScene(entity)
@@ -480,7 +556,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.2.4 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.3.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -488,10 +564,11 @@ RegisterCommand('rsliftdebug', function()
         tostring(modelAvailable),
         tostring(animLoaded)
     )
-    local collisionSummary = ('proxy=%s coll=%s surf=%.2f'):format(
+    local collisionSummary = ('proxy=%s coll=%s surf=%.2f support=%s'):format(
         tostring(proxyExists),
         tostring(proxyCollision),
-        Config.PlatformCollision.surfaceOffset
+        Config.PlatformCollision.surfaceOffset,
+        tostring(Config.PlatformCollision.supportEnabled)
     )
     local animationSummary = ('%s start=%s phase=%.3f dur=%.3f fold=%s lower=%s'):format(
         tostring(attempt.mode or 'none'),
@@ -564,6 +641,7 @@ AddEventHandler('onResourceStop', function(resourceName)
         for entity in pairs(platformProxies) do
             deletePlatformProxy(entity)
         end
+        supportedMotorcycles = {}
         if HasAnimDictLoaded(Config.AnimDict) then
             RemoveAnimDict(Config.AnimDict)
         end

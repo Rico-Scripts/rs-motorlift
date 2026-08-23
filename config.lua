@@ -25,7 +25,12 @@ Config.PlatformCollision = {
     -- GTA-motorwielen zakken gedeeltelijk in een dun objectbound. Deze
     -- verhoging zet het fysieke draagvlak boven het visuele blad, zodat de
     -- banden zichtbaar op het metaal rusten en de oprijplaat nodig blijft.
-    surfaceOffset = 0.10,
+    surfaceOffset = 0.03,
+    deckTop = 0.349,
+    supportEnabled = true,
+    supportIntervalMs = 20,
+    maxRisePerTick = 0.06,
+    raisedAdmissionTolerance = 0.30,
     halfLength = 1.50,
     halfWidth = 0.35,
     vehicleMargin = 0.20,
