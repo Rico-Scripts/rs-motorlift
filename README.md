@@ -88,6 +88,14 @@ Versie 1.3.2 maakt de onzichtbare proxy-drawable even groot als zijn volledige
 voorheen 2 cm grote drawable-bounds wegcullt. Scriptmatige voertuigsupport blijft
 standaard uitgeschakeld.
 
+Versie 1.4.0 vervangt client-lokale proxies door precies één server-created,
+netwerkgesynchroniseerde OneSync-proxy per lift. De server spawnt, bewaart en
+beweegt deze collisionentity samen met de animatie; clients maken hem alleen
+onzichtbaar en laden zijn collision. Zowel het echte liftmodel als de proxy
+gebruiken Sollumz-collisionmateriaal `METAL_SOLID_LARGE` (index 57), met onder
+andere `MAP_VEHICLE` en `TEST_VEHICLE_WHEEL` actief. De scriptmatige Z-support
+blijft uit.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:

@@ -1,4 +1,5 @@
 local MODEL_HASH = joaat(Config.Model)
+local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
 local lifts = {}
 local netIdByEntity = {}
 local nextRevision = 0
@@ -46,15 +47,41 @@ local function newRevision()
 end
 
 local function setSync(entity, state, target, action, busy)
+    local lift = lifts[NetworkGetNetworkIdFromEntity(entity)]
     local sync = {
         state = state,
         target = target or state,
         action = action or '',
         busy = busy == true,
-        revision = newRevision()
+        revision = newRevision(),
+        proxyNetId = lift and lift.proxyNetId or 0
     }
     Entity(entity).state:set(Config.StateBagKey, sync, true)
     return sync
+end
+
+local function createNetworkProxy(entity, initialState)
+    local coords = GetEntityCoords(entity)
+    local height = initialState == Config.States.drive and Config.PlatformCollision.travel or 0.0
+    local proxy = CreateObjectNoOffset(
+        PROXY_MODEL_HASH,
+        coords.x,
+        coords.y,
+        coords.z + height + Config.PlatformCollision.surfaceOffset,
+        true,
+        true,
+        false
+    )
+    if not proxy or proxy == 0 then return 0, 0 end
+    SetEntityHeading(proxy, GetEntityHeading(entity))
+    FreezeEntityPosition(proxy, true)
+    SetEntityOrphanMode(proxy, 2)
+    local netId = NetworkGetNetworkIdFromEntity(proxy)
+    if not netId or netId == 0 then
+        DeleteEntity(proxy)
+        return 0, 0
+    end
+    return proxy, netId
 end
 
 local function registerLift(entity, id, initialState, ownedByResource, persistent)
@@ -76,13 +103,20 @@ local function registerLift(entity, id, initialState, ownedByResource, persisten
         initialState = loadPersistentState(id, initialState)
     end
 
+    local proxyEntity, proxyNetId = createNetworkProxy(entity, initialState)
+    if proxyEntity == 0 or proxyNetId == 0 then
+        return false, 'proxy_spawn_failed'
+    end
+
     lifts[netId] = {
         entity = entity,
         id = id or ('net_%s'):format(netId),
         state = initialState,
         busy = false,
         ownedByResource = ownedByResource == true,
-        persistent = persistent
+        persistent = persistent,
+        proxyEntity = proxyEntity,
+        proxyNetId = proxyNetId
     }
     netIdByEntity[entity] = netId
 
@@ -90,6 +124,33 @@ local function registerLift(entity, id, initialState, ownedByResource, persisten
     setSync(entity, initialState, initialState, '', false)
     debugLog(('Lift %s geregistreerd als netId %s'):format(lifts[netId].id, netId))
     return true, netId
+end
+
+
+local function moveProxyTransition(lift, fromHeight, targetHeight, revision)
+    CreateThread(function()
+        local startedAt = GetGameTimer()
+        local duration = math.max(1, Config.AnimationDurationMs)
+        while lift.busy and DoesEntityExist(lift.entity) and DoesEntityExist(lift.proxyEntity) do
+            local current = Entity(lift.entity).state[Config.StateBagKey]
+            if not current or current.revision ~= revision then return end
+            local progress = math.min(1.0, (GetGameTimer() - startedAt) / duration)
+            local height = fromHeight + ((targetHeight - fromHeight) * progress)
+            local coords = GetEntityCoords(lift.entity)
+            SetEntityCoords(
+                lift.proxyEntity,
+                coords.x,
+                coords.y,
+                coords.z + height + Config.PlatformCollision.surfaceOffset,
+                false,
+                false,
+                false,
+                false
+            )
+            if progress >= 1.0 then return end
+            Wait(0)
+        end
+    end)
 end
 
 local function spawnLift(coords, id, initialState, persistent)
@@ -175,6 +236,9 @@ local function transitionLift(lift, targetState, source)
 
     lift.busy = true
     local transitionSync = setSync(lift.entity, transitionState, targetState, animation, true)
+    local fromHeight = lift.state == Config.States.drive and Config.PlatformCollision.travel or 0.0
+    local targetHeight = targetState == Config.States.drive and Config.PlatformCollision.travel or 0.0
+    moveProxyTransition(lift, fromHeight, targetHeight, transitionSync.revision)
     if source then
         local label = targetState == Config.States.drive and 'opgeklapt' or 'neergelaten'
         playerMessage(source, ('~b~RS-motorlift wordt %s.'):format(label))
@@ -191,6 +255,19 @@ local function transitionLift(lift, targetState, source)
 
         lift.state = targetState
         lift.busy = false
+        if DoesEntityExist(lift.proxyEntity) then
+            local coords = GetEntityCoords(lift.entity)
+            SetEntityCoords(
+                lift.proxyEntity,
+                coords.x,
+                coords.y,
+                coords.z + targetHeight + Config.PlatformCollision.surfaceOffset,
+                false,
+                false,
+                false,
+                false
+            )
+        end
         setSync(lift.entity, targetState, targetState, '', false)
         if lift.persistent then
             savePersistentState(lift.id, targetState)
@@ -330,6 +407,10 @@ end)
 AddEventHandler('entityRemoved', function(entity)
     local netId = netIdByEntity[entity]
     if netId then
+        local lift = lifts[netId]
+        if lift and lift.proxyEntity and DoesEntityExist(lift.proxyEntity) then
+            DeleteEntity(lift.proxyEntity)
+        end
         netIdByEntity[entity] = nil
         lifts[netId] = nil
     end
@@ -361,6 +442,9 @@ AddEventHandler('onResourceStop', function(resourceName)
         return
     end
     for _, lift in pairs(lifts) do
+        if lift.proxyEntity and DoesEntityExist(lift.proxyEntity) then
+            DeleteEntity(lift.proxyEntity)
+        end
         if lift.ownedByResource and DoesEntityExist(lift.entity) then
             DeleteEntity(lift.entity)
         end

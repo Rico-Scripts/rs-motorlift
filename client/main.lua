@@ -9,6 +9,7 @@ local activeScenes = {}
 local platformProxies = {}
 local platformHeights = {}
 local supportedMotorcycles = {}
+local networkProxyIds = {}
 local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
 
 local function debugLog(message)
@@ -120,7 +121,7 @@ end
 
 local function deletePlatformProxy(entity)
     local proxy = platformProxies[entity]
-    if proxy and DoesEntityExist(proxy) then
+    if proxy and DoesEntityExist(proxy) and not NetworkGetEntityIsNetworked(proxy) then
         DeleteEntity(proxy)
     end
     platformProxies[entity] = nil
@@ -130,6 +131,10 @@ end
 local function setPlatformProxyHeight(entity, height)
     local proxy = platformProxies[entity]
     if not proxy or not DoesEntityExist(proxy) or not DoesEntityExist(entity) then return false end
+    if NetworkGetEntityIsNetworked(proxy) then
+        platformHeights[entity] = height
+        return true
+    end
     local coords = GetEntityCoords(entity)
     SetEntityCoordsNoOffset(
         proxy,
@@ -147,9 +152,40 @@ end
 
 local function ensurePlatformProxy(entity, height)
     local current = platformProxies[entity]
+    local proxyNetId = networkProxyIds[entity]
+    if current and DoesEntityExist(current) and proxyNetId and proxyNetId ~= 0 then
+        local currentNetId = NetworkGetEntityIsNetworked(current) and NetworkGetNetworkIdFromEntity(current) or 0
+        if currentNetId ~= proxyNetId then
+            if currentNetId == 0 then
+                DeleteEntity(current)
+            end
+            platformProxies[entity] = nil
+            platformHeights[entity] = nil
+            current = nil
+        end
+    end
     if current and DoesEntityExist(current) then
         setPlatformProxyHeight(entity, height or 0.0)
         return current
+    end
+    if proxyNetId and proxyNetId ~= 0 then
+        local deadline = GetGameTimer() + 5000
+        local proxy = NetworkGetEntityFromNetworkId(proxyNetId)
+        while (proxy == 0 or not DoesEntityExist(proxy)) and GetGameTimer() < deadline do
+            Wait(50)
+            proxy = NetworkGetEntityFromNetworkId(proxyNetId)
+        end
+        if proxy ~= 0 and DoesEntityExist(proxy) then
+            SetEntityAlpha(proxy, 0, false)
+            SetEntityLoadCollisionFlag(proxy, true, 1)
+            SetEntityRecordsCollisions(proxy, true)
+            SetEntityCollision(proxy, true, true)
+            ActivatePhysics(proxy)
+            platformProxies[entity] = proxy
+            platformHeights[entity] = height or 0.0
+            return proxy
+        end
+        return 0
     end
     if not loadModel(PROXY_MODEL_HASH, 5000) then
         notify('~r~RS-platformcollision kon niet worden geladen.')
@@ -388,6 +424,7 @@ local function applySync(entity, sync)
         return
     end
     appliedRevision[entity] = revision
+    networkProxyIds[entity] = tonumber(sync.proxyNetId) or 0
 
     applicationToken[entity] = (applicationToken[entity] or 0) + 1
     local token = applicationToken[entity]
@@ -556,7 +593,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.3.2 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.4.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -564,8 +601,9 @@ RegisterCommand('rsliftdebug', function()
         tostring(modelAvailable),
         tostring(animLoaded)
     )
-    local collisionSummary = ('proxy=%s coll=%s surf=%.2f support=%s'):format(
+    local collisionSummary = ('proxy=%s netproxy=%s coll=%s surf=%.2f support=%s'):format(
         tostring(proxyExists),
+        tostring(proxyExists and NetworkGetEntityIsNetworked(proxy) or false),
         tostring(proxyCollision),
         Config.PlatformCollision.surfaceOffset,
         tostring(Config.PlatformCollision.supportEnabled)
@@ -628,6 +666,9 @@ CreateThread(function()
 
         if cachedEntity ~= 0 then
             local sync = Entity(cachedEntity).state[Config.StateBagKey]
+            if sync and appliedRevision[cachedEntity] ~= sync.revision then
+                applySync(cachedEntity, sync)
+            end
             if sync and sync.state == Config.States.drive then
                 ensurePlatformProxy(cachedEntity, Config.PlatformCollision.travel)
             elseif sync and sync.state == Config.States.use then
@@ -635,9 +676,6 @@ CreateThread(function()
             elseif not platformProxies[cachedEntity] then
                 local initialHeight = sync and sync.state == Config.States.lowering and Config.PlatformCollision.travel or 0.0
                 ensurePlatformProxy(cachedEntity, initialHeight)
-            end
-            if sync and appliedRevision[cachedEntity] ~= sync.revision then
-                applySync(cachedEntity, sync)
             end
         end
 
@@ -678,6 +716,7 @@ AddEventHandler('onResourceStop', function(resourceName)
             deletePlatformProxy(entity)
         end
         supportedMotorcycles = {}
+        networkProxyIds = {}
         if HasAnimDictLoaded(Config.AnimDict) then
             RemoveAnimDict(Config.AnimDict)
         end
