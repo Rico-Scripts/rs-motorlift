@@ -46,7 +46,7 @@ local function newRevision()
     return nextRevision
 end
 
-local function setSync(entity, state, target, action, busy)
+local function setSync(entity, state, target, action, busy, carrierSource)
     local lift = lifts[NetworkGetNetworkIdFromEntity(entity)]
     local sync = {
         state = state,
@@ -54,7 +54,8 @@ local function setSync(entity, state, target, action, busy)
         action = action or '',
         busy = busy == true,
         revision = newRevision(),
-        proxyNetId = lift and lift.proxyNetId or 0
+        proxyNetId = lift and lift.proxyNetId or 0,
+        carrierSource = tonumber(carrierSource) or 0
     }
     Entity(entity).state:set(Config.StateBagKey, sync, true)
     return sync
@@ -235,7 +236,7 @@ local function transitionLift(lift, targetState, source)
     end
 
     lift.busy = true
-    local transitionSync = setSync(lift.entity, transitionState, targetState, animation, true)
+    local transitionSync = setSync(lift.entity, transitionState, targetState, animation, true, source)
     local fromHeight = lift.state == Config.States.drive and Config.PlatformCollision.travel or 0.0
     local targetHeight = targetState == Config.States.drive and Config.PlatformCollision.travel or 0.0
     moveProxyTransition(lift, fromHeight, targetHeight, transitionSync.revision)

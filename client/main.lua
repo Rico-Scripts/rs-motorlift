@@ -10,6 +10,7 @@ local platformProxies = {}
 local platformHeights = {}
 local supportedMotorcycles = {}
 local networkProxyIds = {}
+local lastCarryAttempt = {}
 local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
 
 local function debugLog(message)
@@ -244,12 +245,21 @@ local function motorcycleOnPlatform(entity, height)
     local best, bestDistance
     local margin = Config.PlatformCollision.vehicleMargin
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-        if DoesEntityExist(vehicle) and GetVehicleClass(vehicle) == 8 then
+        local model = DoesEntityExist(vehicle) and GetEntityModel(vehicle) or 0
+        if model ~= 0 and (GetVehicleClass(vehicle) == 8 or IsThisModelABike(model)) then
             local coords = GetEntityCoords(vehicle)
             local localCoords = GetOffsetFromEntityGivenWorldCoords(entity, coords.x, coords.y, coords.z)
+            local modelMinimum = GetModelDimensions(model)
+            local bottomZ = coords.z + modelMinimum.z
+            local verticalInside
+            if height > Config.PlatformCollision.travel * 0.5 then
+                verticalInside = math.abs(bottomZ - deckZ) <= Config.PlatformCollision.raisedAdmissionTolerance
+            else
+                verticalInside = math.abs(coords.z - deckZ) <= Config.PlatformCollision.vehicleZTolerance
+            end
             local inside = math.abs(localCoords.x) <= Config.PlatformCollision.halfLength + margin
                 and math.abs(localCoords.y) <= Config.PlatformCollision.halfWidth + margin
-                and math.abs(coords.z - deckZ) <= Config.PlatformCollision.vehicleZTolerance
+                and verticalInside
             if inside then
                 local distance = math.sqrt((coords.x - liftCoords.x) ^ 2 + (coords.y - liftCoords.y) ^ 2)
                 if not bestDistance or distance < bestDistance then
@@ -295,10 +305,17 @@ local function applyMotorcycleSupport(entity, vehicle, height)
     end
 end
 
-local function animatePlatformProxy(entity, fromHeight, targetHeight, token)
+local function animatePlatformProxy(entity, fromHeight, targetHeight, token, carrierSource)
     if ensurePlatformProxy(entity, fromHeight) == 0 then return end
-    local vehicle = motorcycleOnPlatform(entity, fromHeight)
-    local vehicleFrozen = vehicle and requestControl(vehicle, 1200)
+    local isCarrier = tonumber(carrierSource) == GetPlayerServerId(PlayerId())
+    local vehicle = isCarrier and motorcycleOnPlatform(entity, fromHeight) or nil
+    local vehicleFrozen = vehicle and requestControl(vehicle, 1500)
+    lastCarryAttempt[entity] = {
+        source = tonumber(carrierSource) or 0,
+        eligible = isCarrier,
+        vehicle = vehicle or 0,
+        control = vehicleFrozen == true
+    }
     if vehicleFrozen then
         supportedMotorcycles[vehicle] = entity
         FreezeEntityPosition(vehicle, true)
@@ -447,10 +464,10 @@ local function applySync(entity, sync)
             poseEntity(entity, 1.0)
         elseif sync.state == Config.States.folding then
             playTransition(entity, Config.Animations.fold)
-            animatePlatformProxy(entity, 0.0, Config.PlatformCollision.travel, token)
+            animatePlatformProxy(entity, 0.0, Config.PlatformCollision.travel, token, sync.carrierSource)
         elseif sync.state == Config.States.lowering then
             playTransition(entity, Config.Animations.lower)
-            animatePlatformProxy(entity, Config.PlatformCollision.travel, 0.0, token)
+            animatePlatformProxy(entity, Config.PlatformCollision.travel, 0.0, token, sync.carrierSource)
         else
             debugLog(('Onbekende liftstate ontvangen: %s'):format(tostring(sync.state)))
         end
@@ -593,7 +610,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.4.1 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.4.2 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -616,10 +633,18 @@ RegisterCommand('rsliftdebug', function()
         tostring(foldPlaying),
         tostring(lowerPlaying)
     )
-    print(('[rs_moto_lift] DEBUG %s | %s | %s'):format(entitySummary, collisionSummary, animationSummary))
+    local carry = lastCarryAttempt[entity] or {}
+    local carrySummary = ('carry src=%s eligible=%s veh=%s control=%s'):format(
+        tostring(carry.source or 0),
+        tostring(carry.eligible == true),
+        tostring(carry.vehicle or 0),
+        tostring(carry.control == true)
+    )
+    print(('[rs_moto_lift] DEBUG %s | %s | %s | %s'):format(entitySummary, collisionSummary, animationSummary, carrySummary))
     notify(('~b~RS-debug: %s'):format(entitySummary))
     notify(('~b~RS-debug: %s'):format(collisionSummary))
     notify(('~b~RS-debug: %s'):format(animationSummary))
+    notify(('~b~RS-debug: %s'):format(carrySummary))
 end, false)
 
 RegisterCommand('rsliftunstuck', function()
@@ -717,6 +742,7 @@ AddEventHandler('onResourceStop', function(resourceName)
         end
         supportedMotorcycles = {}
         networkProxyIds = {}
+        lastCarryAttempt = {}
         if HasAnimDictLoaded(Config.AnimDict) then
             RemoveAnimDict(Config.AnimDict)
         end

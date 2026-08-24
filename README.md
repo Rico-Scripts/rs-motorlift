@@ -101,6 +101,11 @@ markeert het proxy-archetype als dynamic. Een gespawned object gebruikt daardoor
 zijn eigen fysieke prop-bound, zoals de werkende `jg_lift.ydr`, in plaats van
 alleen een losse YBN die door RAGE hoofdzakelijk als mapcollision wordt behandeld.
 
+Versie 1.4.2 wijst per beweging precies één carrier-client aan: de speler die de
+lift bedient. Alleen die client vraagt netwerkcontrole over de motorfiets, bevriest
+hem tijdelijk en verplaatst hem iedere frame met exact dezelfde hoogte-delta als
+het blad. De detectie accepteert zowel voertuigklasse 8 als native bike-modellen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
