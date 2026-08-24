@@ -556,7 +556,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.3.0 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.3.1 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -582,6 +582,42 @@ RegisterCommand('rsliftdebug', function()
     notify(('~b~RS-debug: %s'):format(entitySummary))
     notify(('~b~RS-debug: %s'):format(collisionSummary))
     notify(('~b~RS-debug: %s'):format(animationSummary))
+end, false)
+
+RegisterCommand('rsliftunstuck', function()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 then
+        local pedCoords = GetEntityCoords(ped)
+        local bestDistance = 6.0
+        for _, candidate in ipairs(GetGamePool('CVehicle')) do
+            if DoesEntityExist(candidate) and GetVehicleClass(candidate) == 8 then
+                local distance = #(GetEntityCoords(candidate) - pedCoords)
+                if distance < bestDistance then
+                    vehicle = candidate
+                    bestDistance = distance
+                end
+            end
+        end
+    end
+
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        notify('~r~Geen motorfiets binnen 6 meter gevonden.')
+        return
+    end
+    if not requestControl(vehicle, 1500) then
+        notify('~r~Geen netwerkcontrole over de motorfiets gekregen.')
+        return
+    end
+
+    supportedMotorcycles[vehicle] = nil
+    FreezeEntityPosition(vehicle, false)
+    SetEntityCollision(vehicle, true, true)
+    SetEntityDynamic(vehicle, true)
+    ActivatePhysics(vehicle)
+    SetEntityVelocity(vehicle, 0.0, 0.0, -0.2)
+    SetVehicleOnGroundProperly(vehicle, 5.0)
+    notify('~g~Motorfiets is vrijgegeven en op de grond gezet.')
 end, false)
 
 exports('ToggleLift', requestToggle)

@@ -27,7 +27,7 @@ Config.PlatformCollision = {
     -- banden zichtbaar op het metaal rusten en de oprijplaat nodig blijft.
     surfaceOffset = 0.03,
     deckTop = 0.349,
-    supportEnabled = true,
+    supportEnabled = false,
     supportIntervalMs = 20,
     maxRisePerTick = 0.06,
     raisedAdmissionTolerance = 0.30,

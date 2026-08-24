@@ -78,6 +78,11 @@ sturen en rijden over X/Y blijven vrij. Reeds gedragen motoren blijven tijdens
 de hefbeweging geregistreerd, terwijl motoren onder een opgeheven lift niet
 onbedoeld omhoog worden getrokken.
 
+Versie 1.3.1 schakelt deze experimentele support standaard uit nadat live-testen
+lieten zien dat continue Z-correctie een bereden motor kon vasthouden. Het
+veiligheidscommand `/rsliftunstuck` geeft de huidige of dichtstbijzijnde motor
+vrij, activeert de physics opnieuw en zet hem terug op de grond.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
