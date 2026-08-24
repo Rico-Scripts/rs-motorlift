@@ -96,6 +96,11 @@ gebruiken Sollumz-collisionmateriaal `METAL_SOLID_LARGE` (index 57), met onder
 andere `MAP_VEHICLE` en `TEST_VEHICLE_WHEEL` actief. De scriptmatige Z-support
 blijft uit.
 
+Versie 1.4.1 embedt de metalen `BoundComposite` rechtstreeks in de proxy-YDR en
+markeert het proxy-archetype als dynamic. Een gespawned object gebruikt daardoor
+zijn eigen fysieke prop-bound, zoals de werkende `jg_lift.ydr`, in plaats van
+alleen een losse YBN die door RAGE hoofdzakelijk als mapcollision wordt behandeld.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
