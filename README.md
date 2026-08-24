@@ -115,6 +115,11 @@ absolute hoogte-offset. Tijdens elk bewegingsframe wordt alleen de onderlinge
 collision met lift en proxy onderdrukt, zodat RAGE de motor niet zijwaarts van het
 blad kan duwen. Voor het loslaten wordt de exacte eindhoogte nogmaals afgedwongen.
 
+Versie 1.4.5 verwijdert de verouderde losse platform-YBN uit de stream. De proxy
+heeft zijn `METAL_SOLID_LARGE`-collision al als embedded bound in de YDR; beide
+tegelijk streamen creëerde twee exact overlappende physicsvlakken en kon een motor
+bij het oprijden zijwaarts wegwerpen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
