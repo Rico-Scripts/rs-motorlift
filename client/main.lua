@@ -556,7 +556,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.3.1 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.3.2 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,

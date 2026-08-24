@@ -83,6 +83,11 @@ lieten zien dat continue Z-correctie een bereden motor kon vasthouden. Het
 veiligheidscommand `/rsliftunstuck` geeft de huidige of dichtstbijzijnde motor
 vrij, activeert de physics opnieuw en zet hem terug op de grond.
 
+Versie 1.3.2 maakt de onzichtbare proxy-drawable even groot als zijn volledige
+3,00 meter YBN-envelope. Dit voorkomt dat RAGE voertuigcollision buiten de
+voorheen 2 cm grote drawable-bounds wegcullt. Scriptmatige voertuigsupport blijft
+standaard uitgeschakeld.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
