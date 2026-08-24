@@ -21,12 +21,13 @@ Config.TransitionGraceMs = 150
 
 Config.PlatformCollision = {
     model = 'rs_moto_lift_platform_proxy',
-    travel = 0.651,
-    -- GTA-motorwielen zakken gedeeltelijk in een dun objectbound. Deze
-    -- verhoging zet het fysieke draagvlak boven het visuele blad, zodat de
-    -- banden zichtbaar op het metaal rusten en de oprijplaat nodig blijft.
+    -- Nieuwe Blender-lift: dek van 0,18 m naar 1,00 m.
+    travel = 0.820,
+    -- De proxy bevat nu een geleidelijke collision-oprijplaat van 0,70 m.
+    -- Houd de proxy exact op het visuele dek om een onzichtbare instaprand te
+    -- voorkomen.
     surfaceOffset = 0.00,
-    deckTop = 0.349,
+    deckTop = 0.180,
     supportEnabled = false,
     supportIntervalMs = 20,
     maxRisePerTick = 0.06,

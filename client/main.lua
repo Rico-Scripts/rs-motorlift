@@ -241,7 +241,7 @@ end
 
 local function motorcycleOnPlatform(entity, height)
     local liftCoords = GetEntityCoords(entity)
-    local deckZ = liftCoords.z + 0.349 + height + Config.PlatformCollision.surfaceOffset
+    local deckZ = liftCoords.z + Config.PlatformCollision.deckTop + height + Config.PlatformCollision.surfaceOffset
     local best, bestDistance
     local margin = Config.PlatformCollision.vehicleMargin
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
@@ -633,7 +633,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.4.6 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.4.8 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
