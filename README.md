@@ -106,6 +106,10 @@ lift bedient. Alleen die client vraagt netwerkcontrole over de motorfiets, bevri
 hem tijdelijk en verplaatst hem iedere frame met exact dezelfde hoogte-delta als
 het blad. De detectie accepteert zowel voertuigklasse 8 als native bike-modellen.
 
+Versie 1.4.3 voegt `/rsliftdespawn` toe. Het commando verwijdert uitsluitend de
+dichtstbijzijnde runtime-lift die met `/rsliftspawn` is gemaakt, inclusief zijn
+netwerkproxy. Vaste `Config.Placements` worden beschermd tegen per ongeluk wissen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
@@ -129,6 +133,7 @@ Gebruik als bevoegde speler:
 /rsliftspawn
 /rsliftspawn use
 /rsliftspawn drive
+/rsliftdespawn
 ```
 
 De lift verschijnt op de gemeten vloer onder de huidige positie en krijgt de

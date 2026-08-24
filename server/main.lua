@@ -325,6 +325,59 @@ RegisterCommand(Config.Spawn.command, function(source, args)
     TriggerClientEvent('rs_moto_lift:client:resolveSpawnGround', source, requestToken)
 end, false)
 
+RegisterCommand(Config.Spawn.despawnCommand, function(source)
+    if not Config.Spawn.enabled then
+        playerMessage(source, '~r~Het beheren van runtime RS-motorliften is uitgeschakeld.')
+        return
+    end
+    if source <= 0 then
+        print(('[rs_moto_lift] /%s moet door een speler worden gebruikt; de serverconsole heeft geen positie.'):format(Config.Spawn.despawnCommand))
+        return
+    end
+    if Config.Spawn.requireAce and not IsPlayerAceAllowed(source, Config.Spawn.acePermission) then
+        playerMessage(source, '~r~Je hebt geen toestemming om een RS-motorlift te verwijderen.')
+        return
+    end
+
+    local playerPed = GetPlayerPed(source)
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        playerMessage(source, '~r~Spelerpositie kon niet worden bepaald.')
+        return
+    end
+
+    local playerCoords = GetEntityCoords(playerPed)
+    local playerBucket = GetPlayerRoutingBucket(source)
+    local nearestNetId, nearestLift, nearestDistance
+    for netId, lift in pairs(lifts) do
+        local isRuntime = type(lift.id) == 'string' and lift.id:sub(1, 8) == 'runtime_'
+        if isRuntime and DoesEntityExist(lift.entity) and GetEntityRoutingBucket(lift.entity) == playerBucket then
+            local distance = #(playerCoords - GetEntityCoords(lift.entity))
+            if distance <= Config.Spawn.despawnDistance and (not nearestDistance or distance < nearestDistance) then
+                nearestNetId, nearestLift, nearestDistance = netId, lift, distance
+            end
+        end
+    end
+
+    if not nearestLift then
+        playerMessage(source, ('~r~Geen gespawnede RS-motorlift binnen %.1f meter gevonden.'):format(Config.Spawn.despawnDistance))
+        return
+    end
+    if nearestLift.busy then
+        playerMessage(source, '~y~Wacht tot de lift klaar is met bewegen voordat je hem verwijdert.')
+        return
+    end
+
+    netIdByEntity[nearestLift.entity] = nil
+    lifts[nearestNetId] = nil
+    if nearestLift.proxyEntity and DoesEntityExist(nearestLift.proxyEntity) then
+        DeleteEntity(nearestLift.proxyEntity)
+    end
+    if nearestLift.ownedByResource and DoesEntityExist(nearestLift.entity) then
+        DeleteEntity(nearestLift.entity)
+    end
+    playerMessage(source, ('~g~RS-motorlift verwijderd (afstand %.1f m).'):format(nearestDistance))
+end, false)
+
 local function isFiniteNumber(value)
     return type(value) == 'number' and value == value and value > -math.huge and value < math.huge
 end
