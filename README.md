@@ -120,6 +120,11 @@ heeft zijn `METAL_SOLID_LARGE`-collision al als embedded bound in de YDR; beide
 tegelijk streamen creëerde twee exact overlappende physicsvlakken en kon een motor
 bij het oprijden zijwaarts wegwerpen.
 
+Versie 1.4.6 zet de collisionproxy exact op de gemeten bladhoogte. De eerdere
+`surfaceOffset` van 3 cm maakte van de kopse kant van de deck-bound een onzichtbare
+stoeprand op de overgang vanaf de oprijplaat; de offset is daarom teruggebracht
+naar `0.00`.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
