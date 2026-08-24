@@ -326,23 +326,46 @@ local function animatePlatformProxy(entity, fromHeight, targetHeight, token, car
 
     local startedAt = GetGameTimer()
     local duration = math.max(1, Config.AnimationDurationMs)
-    local previousHeight = fromHeight
+    local vehicleStart = vehicle and GetEntityCoords(vehicle) or nil
+    local proxy = platformProxies[entity]
     while applicationToken[entity] == token and DoesEntityExist(entity) do
         local progress = math.min(1.0, (GetGameTimer() - startedAt) / duration)
         local height = fromHeight + ((targetHeight - fromHeight) * progress)
-        local delta = height - previousHeight
         setPlatformProxyHeight(entity, height)
-        if vehicle and DoesEntityExist(vehicle) and math.abs(delta) > 0.00001 then
-            local coords = GetEntityCoords(vehicle)
-            SetEntityCoordsNoOffset(vehicle, coords.x, coords.y, coords.z + delta, false, false, false)
+        if vehicle and vehicleStart and DoesEntityExist(vehicle) then
+            SetEntityNoCollisionEntity(vehicle, entity, true)
+            if proxy and DoesEntityExist(proxy) then
+                SetEntityNoCollisionEntity(vehicle, proxy, true)
+            end
+            SetEntityCoordsNoOffset(
+                vehicle,
+                vehicleStart.x,
+                vehicleStart.y,
+                vehicleStart.z + (height - fromHeight),
+                false,
+                false,
+                false
+            )
             SetEntityVelocity(vehicle, 0.0, 0.0, 0.0)
         end
-        previousHeight = height
         if progress >= 1.0 then break end
         Wait(0)
     end
     setPlatformProxyHeight(entity, targetHeight)
-    if vehicle and DoesEntityExist(vehicle) and vehicleFrozen then
+    if vehicle and vehicleStart and DoesEntityExist(vehicle) and vehicleFrozen then
+        SetEntityCoordsNoOffset(
+            vehicle,
+            vehicleStart.x,
+            vehicleStart.y,
+            vehicleStart.z + (targetHeight - fromHeight),
+            false,
+            false,
+            false
+        )
+        SetEntityVelocity(vehicle, 0.0, 0.0, 0.0)
+        lastCarryAttempt[entity].completed = true
+        lastCarryAttempt[entity].moved = targetHeight - fromHeight
+        Wait(100)
         FreezeEntityPosition(vehicle, false)
     end
 end
@@ -610,7 +633,7 @@ RegisterCommand('rsliftdebug', function()
     local proxy = platformProxies[entity]
     local proxyExists = proxy and DoesEntityExist(proxy) or false
     local proxyCollision = proxyExists and HasCollisionLoadedAroundEntity(proxy) or false
-    local entitySummary = ('v1.4.3 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
+    local entitySummary = ('v1.4.4 ent=%s net=%s dist=%.2f state=%s model=%s dict=%s'):format(
         entity,
         NetworkGetNetworkIdFromEntity(entity),
         distance,
@@ -634,11 +657,13 @@ RegisterCommand('rsliftdebug', function()
         tostring(lowerPlaying)
     )
     local carry = lastCarryAttempt[entity] or {}
-    local carrySummary = ('carry src=%s eligible=%s veh=%s control=%s'):format(
+    local carrySummary = ('carry src=%s eligible=%s veh=%s control=%s done=%s dz=%.3f'):format(
         tostring(carry.source or 0),
         tostring(carry.eligible == true),
         tostring(carry.vehicle or 0),
-        tostring(carry.control == true)
+        tostring(carry.control == true),
+        tostring(carry.completed == true),
+        tonumber(carry.moved) or 0.0
     )
     print(('[rs_moto_lift] DEBUG %s | %s | %s | %s'):format(entitySummary, collisionSummary, animationSummary, carrySummary))
     notify(('~b~RS-debug: %s'):format(entitySummary))

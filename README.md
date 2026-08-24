@@ -110,6 +110,11 @@ Versie 1.4.3 voegt `/rsliftdespawn` toe. Het commando verwijdert uitsluitend de
 dichtstbijzijnde runtime-lift die met `/rsliftspawn` is gemaakt, inclusief zijn
 netwerkproxy. Vaste `Config.Placements` worden beschermd tegen per ongeluk wissen.
 
+Versie 1.4.4 draagt de geselecteerde motor vanuit één vaste beginpositie met een
+absolute hoogte-offset. Tijdens elk bewegingsframe wordt alleen de onderlinge
+collision met lift en proxy onderdrukt, zodat RAGE de motor niet zijwaarts van het
+blad kan duwen. Voor het loslaten wordt de exacte eindhoogte nogmaals afgedwongen.
+
 ## Installatie
 
 1. Clone de repository als `resources/[local]/rs_moto_lift`:
