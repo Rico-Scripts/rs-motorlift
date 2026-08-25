@@ -20,7 +20,7 @@ Config.AnimationDurationMs = 1000
 Config.TransitionGraceMs = 150
 
 Config.PlatformCollision = {
-    model = 'rs_moto_lift_platform_proxy',
+    model = 'rs_moto_lift_platform_proxy_v150',
     -- Nieuwe Blender-lift: dek van 0,18 m naar 1,00 m.
     travel = 0.820,
     -- De proxy bevat nu een geleidelijke collision-oprijplaat van 0,70 m.

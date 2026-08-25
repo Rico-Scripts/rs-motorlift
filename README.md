@@ -46,7 +46,7 @@ child-bone. De wielklem is exact 0,180 meter naar het einde van het bestaande
 
 Versie 1.2.0 verlengt het blad symmetrisch naar exact 3,00 x 0,70 meter en zet
 de wielklem aan het nieuwe uiteinde. Een afzonderlijke, onzichtbare
-`rs_moto_lift_platform_proxy` levert een vaste 3,00 meter voertuigcollision en
+`rs_moto_lift_platform_proxy_v150` levert een vaste 3,00 meter voertuigcollision en
 een frontstop. Tijdens heffen en zakken beweegt de proxy exact 0,651 meter mee;
 een motorfiets op het blad wordt gecontroleerd en per frame met het blad
 meegenomen.
@@ -109,6 +109,12 @@ het blad. De detectie accepteert zowel voertuigklasse 8 als native bike-modellen
 Versie 1.4.3 voegt `/rsliftdespawn` toe. Het commando verwijdert uitsluitend de
 dichtstbijzijnde runtime-lift die met `/rsliftspawn` is gemaakt, inclusief zijn
 netwerkproxy. Vaste `Config.Placements` worden beschermd tegen per ongeluk wissen.
+
+Versie 1.5.0 gebruikt een nieuwe platformproxy-assetnaam om de oude FiveM-streamcache
+te omzeilen. Nieuwe proxies blijven niet verweesd achter. Bij resource-start worden
+oude proxies van zowel de vorige als de huidige modelnaam verwijderd. Wanneer geen
+beheerde lift in de buurt staat, kan `/rsliftdespawn` ook een achtergebleven collision
+binnen de ingestelde verwijderafstand opruimen.
 
 Versie 1.4.4 draagt de geselecteerde motor vanuit één vaste beginpositie met een
 absolute hoogte-offset. Tijdens elk bewegingsframe wordt alleen de onderlinge
@@ -209,12 +215,13 @@ je een andere mapnaam, pas dan ook de naam bij `ensure` en `exports` aan.
 - Gelijktijdige bediening wordt tijdens de animatie geblokkeerd.
 - Eindstanden worden exact op animatietijd `0.0` of `1.0` vastgezet.
 - Geconfigureerde states kunnen via resource-KVP een restart overleven.
-- Server-created entities krijgen orphan mode `KeepEntity`.
+- De zichtbare serverlift krijgt orphan mode `KeepEntity`; de tijdelijke
+  platformcollision wordt altijd door deze resource beheerd en verwijderd.
 
 ## Assetnamen
 
 - Model/Fragment: `rs_moto_lift`
-- Onzichtbare platformcollision: `rs_moto_lift_platform_proxy`
+- Onzichtbare platformcollision: `rs_moto_lift_platform_proxy_v150`
 - Animdict: `rs_moto_lift_anim`
 - Gebruik → rijstand: `rs_lift_fold_to_drive_locked`
 - Rijstand → gebruik: `rs_lift_lower_to_use`

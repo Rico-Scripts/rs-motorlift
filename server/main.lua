@@ -1,5 +1,8 @@
 local MODEL_HASH = joaat(Config.Model)
 local PROXY_MODEL_HASH = joaat(Config.PlatformCollision.model)
+local LEGACY_PROXY_MODEL_HASHES = {
+    [joaat('rs_moto_lift_platform_proxy')] = true
+}
 local lifts = {}
 local netIdByEntity = {}
 local nextRevision = 0
@@ -61,6 +64,37 @@ local function setSync(entity, state, target, action, busy, carrierSource)
     return sync
 end
 
+local function cleanupUntrackedPlatformProxies(center, maxDistance)
+    if type(GetAllObjects) ~= 'function' then
+        return 0
+    end
+
+    local tracked = {}
+    for _, lift in pairs(lifts) do
+        if lift.proxyEntity and lift.proxyEntity ~= 0 then
+            tracked[lift.proxyEntity] = true
+        end
+    end
+
+    local removed = 0
+    for _, object in ipairs(GetAllObjects() or {}) do
+        if object ~= 0
+            and DoesEntityExist(object)
+            and (GetEntityModel(object) == PROXY_MODEL_HASH or LEGACY_PROXY_MODEL_HASHES[GetEntityModel(object)])
+            and not tracked[object] then
+            local inRange = true
+            if center and maxDistance then
+                inRange = #(GetEntityCoords(object) - center) <= maxDistance
+            end
+            if inRange then
+                DeleteEntity(object)
+                removed = removed + 1
+            end
+        end
+    end
+    return removed
+end
+
 local function createNetworkProxy(entity, initialState)
     local coords = GetEntityCoords(entity)
     local height = initialState == Config.States.drive and Config.PlatformCollision.travel or 0.0
@@ -75,8 +109,9 @@ local function createNetworkProxy(entity, initialState)
     )
     if not proxy or proxy == 0 then return 0, 0 end
     SetEntityHeading(proxy, GetEntityHeading(entity))
+    SetEntityRoutingBucket(proxy, GetEntityRoutingBucket(entity))
     FreezeEntityPosition(proxy, true)
-    SetEntityOrphanMode(proxy, 2)
+    Entity(proxy).state:set('rsMotoLiftPlatformProxy', true, true)
     local netId = NetworkGetNetworkIdFromEntity(proxy)
     if not netId or netId == 0 then
         DeleteEntity(proxy)
@@ -347,6 +382,7 @@ RegisterCommand(Config.Spawn.despawnCommand, function(source)
 
     local playerCoords = GetEntityCoords(playerPed)
     local playerBucket = GetPlayerRoutingBucket(source)
+    local removedOrphans = cleanupUntrackedPlatformProxies(playerCoords, Config.Spawn.despawnDistance)
     local nearestNetId, nearestLift, nearestDistance
     for netId, lift in pairs(lifts) do
         local isRuntime = type(lift.id) == 'string' and lift.id:sub(1, 8) == 'runtime_'
@@ -359,6 +395,10 @@ RegisterCommand(Config.Spawn.despawnCommand, function(source)
     end
 
     if not nearestLift then
+        if removedOrphans > 0 then
+            playerMessage(source, ('~g~%s oude onzichtbare liftcollision(s) verwijderd.'):format(removedOrphans))
+            return
+        end
         playerMessage(source, ('~r~Geen gespawnede RS-motorlift binnen %.1f meter gevonden.'):format(Config.Spawn.despawnDistance))
         return
     end
@@ -375,7 +415,8 @@ RegisterCommand(Config.Spawn.despawnCommand, function(source)
     if nearestLift.ownedByResource and DoesEntityExist(nearestLift.entity) then
         DeleteEntity(nearestLift.entity)
     end
-    playerMessage(source, ('~g~RS-motorlift verwijderd (afstand %.1f m).'):format(nearestDistance))
+    local extraMessage = removedOrphans > 0 and ('; %s oude collision(s) opgeruimd'):format(removedOrphans) or ''
+    playerMessage(source, ('~g~RS-motorlift verwijderd (afstand %.1f m%s).'):format(nearestDistance, extraMessage))
 end, false)
 
 local function isFiniteNumber(value)
@@ -481,6 +522,11 @@ AddEventHandler('onResourceStart', function(resourceName)
 
     CreateThread(function()
         Wait(500)
+        local removed = cleanupUntrackedPlatformProxies()
+        if removed > 0 then
+            print(('[rs_moto_lift] %s achtergebleven platformcollision(s) verwijderd.'):format(removed))
+        end
+        Wait(100)
         if #Config.Placements == 0 then
             print('[rs_moto_lift] Geen Config.Placements ingesteld; assets en exports zijn beschikbaar, maar er wordt geen lift gespawned.')
         end
